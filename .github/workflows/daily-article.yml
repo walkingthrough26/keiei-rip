@@ -1,0 +1,50 @@
+name: Daily Article Generator
+
+on:
+  schedule:
+    # 06:00 JST = 21:00 UTC (previous day)
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (generate but do not commit)'
+        required: false
+        default: 'false'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        working-directory: site
+        run: npm ci
+
+      - name: Generate daily article
+        working-directory: site
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/daily-article.mjs
+
+      - name: Commit and push article
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          git config user.name "Keiei.RIP Bot"
+          git config user.email "bot@keiei.rip"
+          git add site/content/articles/
+          git diff --staged --quiet || git commit -m "feat: add daily article $(date +%Y-%m-%d)"
+          git push
