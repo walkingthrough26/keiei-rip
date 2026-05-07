@@ -4,11 +4,12 @@
  * Run every morning at 06:00 JST via GitHub Actions.
  *
  * Flow:
- *   1. Web search: collect recent Japanese business-failure news (倒産/撤退/不正/M&A失敗)
- *   2. Select: pick the most insightful case for today
- *   3. Deep research: gather background on the selected company
- *   4. Write: generate the full article using Claude
- *   5. Save: write the Markdown file to content/articles/
+ *   1. Web search: gather raw text about recent Japanese business failures
+ *   2. Extract: parse candidates from the raw text in a separate Claude call
+ *   3. Select: pick the most insightful case
+ *   4. Deep research: gather background on the selected company
+ *   5. Write: generate the full article
+ *   6. Save: write Markdown to content/articles/
  */
 
 import Anthropic from '@anthropic-ai/sdk'
@@ -21,165 +22,205 @@ const ARTICLES_DIR = path.join(__dirname, '..', 'content', 'articles')
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────────────
 
-function today() {
-  return new Date().toLocaleDateString('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).replace(/\//g, '-')
+function todayJST() {
+  const d = new Date()
+  const jst = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+  const y = jst.getFullYear()
+  const m = String(jst.getMonth() + 1).padStart(2, '0')
+  const day = String(jst.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function slugify(date, company) {
-  const safe = company
-    .toLowerCase()
-    .replace(/[^\w぀-ゟ゠-ヿ一-鿿]/g, '-')
+  // Transliterate common Japanese company names to ASCII where possible
+  const ascii = company
+    .replace(/[ぁ-ん]/g, '')
+    .replace(/[ァ-ン]/g, '')
+    .replace(/[一-鿿]/g, '')
+    .replace(/[^\w-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
-  return `${date}-${safe}`
+    .toLowerCase() || 'article'
+  return `${date}-${ascii}`
 }
 
-// ── Step 1: web search for failure news ──────────────────────────────────────
+// Extract all text content from a Claude response (skips tool_use blocks)
+function extractText(response) {
+  return response.content
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n')
+    .trim()
+}
 
-async function searchFailureNews() {
-  console.log('🔍  Step 1: searching for today\'s business failure news...')
+// Parse the first JSON array found in a string
+function parseJsonArray(text) {
+  const start = text.indexOf('[')
+  const end = text.lastIndexOf(']')
+  if (start === -1 || end === -1) return null
+  try {
+    return JSON.parse(text.slice(start, end + 1))
+  } catch {
+    return null
+  }
+}
+
+// ── Step 1: web search ────────────────────────────────────────────────────────
+
+async function fetchNewsRaw() {
+  console.log('🔍  Step 1: web search for recent Japanese business failures...')
 
   const response = await client.messages.create({
     model: 'claude-opus-4-7',
-    max_tokens: 2000,
-    tools: [
-      {
-        type: 'web_search_20250305',
-        name: 'web_search',
-        max_uses: 5,
-      },
-    ],
+    max_tokens: 3000,
+    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6 }],
     messages: [
       {
         role: 'user',
-        content: `今日の日本のビジネスニュースから、経営失敗・事業撤退・倒産・M&A失敗・不正会計・コーポレートガバナンス問題の事例を検索してください。
-検索クエリ例：
-- "日本 事業撤退 2025"
-- "日本 倒産 企業 2025"
-- "日本 経営失敗 事例 2025"
-- "日本企業 不正 スキャンダル 2025"
+        content: `以下のキーワードで日本のビジネスニュースを検索し、最近（2024〜2026年）の経営失敗・事業撤退・倒産・M&A失敗・不正会計・コーポレートガバナンス問題の具体的な事例を3〜5件探してください。
 
-結果から、最も深い経営インサイトが得られる事例を3件リストアップし、以下の形式でJSONとして返してください：
-[
-  {
-    "company": "企業名",
-    "event": "何が起きたか（1行）",
-    "year": YYYY,
-    "category": "DX失敗|新規事業失敗|経営判断|財務・M&A|コーポレートガバナンス|組織・文化|急成長の罠",
-    "why_interesting": "なぜ深い学びがあるか（2-3文）"
-  }
-]`,
+検索してほしいキーワード：
+1. 「日本企業 事業撤退 2025」
+2. 「日本 倒産 大企業 2025 2026」
+3. 「日本企業 経営失敗 事例」
+4. 「日本企業 不正 スキャンダル 2025」
+
+見つかった事例について、企業名・何が起きたか・発生年・カテゴリを自由な文章で教えてください。JSON形式でなくてかまいません。`,
       },
     ],
   })
 
-  // Extract text from the response
-  const text = response.content
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('\n')
+  return extractText(response)
+}
 
-  // Try to extract JSON array
-  const match = text.match(/\[[\s\S]*?\]/m)
-  if (match) {
-    try {
-      return JSON.parse(match[0])
-    } catch {
-      // fall through to fallback
-    }
+// ── Step 2: extract candidates from raw text ──────────────────────────────────
+
+async function extractCandidates(rawText) {
+  console.log('📋  Step 2: extracting structured candidates...')
+
+  const response = await client.messages.create({
+    model: 'claude-opus-4-7',
+    max_tokens: 1500,
+    messages: [
+      {
+        role: 'user',
+        content: `以下のテキストから、日本の経営失敗事例を抽出してJSON配列として返してください。
+テキストに具体的な事例がない場合は、あなたの知識から最近（2023〜2026年）の代表的な日本の経営失敗を3件挙げてください。
+
+テキスト：
+${rawText}
+
+必ずこの形式のJSON配列だけを返してください（他の文章は不要）：
+[
+  {
+    "company": "企業名（日本語）",
+    "slug_hint": "企業名のローマ字または英語（例: softbank, sony, toyota）",
+    "event": "何が起きたか（1行、日本語）",
+    "year": 2025,
+    "category": "DX失敗",
+    "why_interesting": "なぜ深い学びがあるか（1〜2文）"
+  }
+]
+
+categoryは以下から選んでください：
+DX失敗 / 新規事業失敗 / 経営判断 / 財務・M&A / コーポレートガバナンス / 組織・文化 / 急成長の罠`,
+      },
+    ],
+  })
+
+  const text = extractText(response)
+  const candidates = parseJsonArray(text)
+
+  if (candidates && candidates.length > 0) {
+    console.log(`   Extracted ${candidates.length} candidates`)
+    return candidates
   }
 
-  // Fallback: return a placeholder for manual review
-  console.warn('⚠️  Could not parse search results JSON, using fallback')
+  // Hard fallback: return a curated recent case
+  console.warn('⚠️  Extraction failed, using curated fallback case')
   return [
     {
-      company: '未定',
-      event: 'Web検索結果の解析に失敗',
-      year: new Date().getFullYear(),
-      category: '経営判断',
-      why_interesting: '手動でレビューが必要です',
+      company: 'テレビ東京HD',
+      slug_hint: 'tv-tokyo',
+      event: '2024年メタバース事業からの撤退と構造改革',
+      year: 2024,
+      category: '新規事業失敗',
+      why_interesting: 'コロナ禍に急拡大したメタバース投資の失敗は、多くの日本企業に共通する「流行追随型」戦略の問題を体現している。',
     },
   ]
 }
 
-// ── Step 2: select best case ──────────────────────────────────────────────────
+// ── Step 3: select best case ──────────────────────────────────────────────────
 
 async function selectBestCase(candidates) {
-  console.log('🎯  Step 2: selecting the most insightful case...')
+  console.log('🎯  Step 3: selecting the most insightful case...')
 
   if (candidates.length === 1) return candidates[0]
 
-  const prompt = `以下の経営失敗事例の候補から、経営者・起業家・学生にとって最も深い学びが得られる1件を選んでください。
+  // Exclude companies already covered in existing articles
+  const existing = fs
+    .readdirSync(ARTICLES_DIR)
+    .map((f) => f.replace(/\.md$/, '').toLowerCase())
 
-候補:
-${JSON.stringify(candidates, null, 2)}
-
-選定基準：
-1. 多くの読者に普遍的に適用できる教訓があるか
-2. まだ十分に語られていない視点や分析があるか
-3. 経営判断の構造が明確に分析できるか
-4. 海外の類似事例との比較が豊かにできるか
-
-選んだ事例のインデックス番号（0始まり）だけを返してください。例：0`
-
-  const response = await client.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 10,
-    messages: [{ role: 'user', content: prompt }],
+  const novel = candidates.filter((c) => {
+    const hint = (c.slug_hint || c.company || '').toLowerCase()
+    return !existing.some((e) => e.includes(hint.slice(0, 5)))
   })
 
-  const idx = parseInt(response.content[0].text.trim()) || 0
-  return candidates[Math.min(idx, candidates.length - 1)]
-}
-
-// ── Step 3: deep research ─────────────────────────────────────────────────────
-
-async function deepResearch(selectedCase) {
-  console.log(`📚  Step 3: deep research on ${selectedCase.company}...`)
+  const pool = novel.length > 0 ? novel : candidates
 
   const response = await client.messages.create({
     model: 'claude-opus-4-7',
-    max_tokens: 4000,
-    tools: [
-      {
-        type: 'web_search_20250305',
-        name: 'web_search',
-        max_uses: 8,
-      },
-    ],
+    max_tokens: 5,
     messages: [
       {
         role: 'user',
-        content: `${selectedCase.company}の以下の事件についてディープリサーチを行ってください。
+        content: `次の経営失敗候補から、経営者・起業家・学生に最も深い学びを与える1件を選んでインデックス番号（0始まり）だけ返してください。
 
-事件の概要：${selectedCase.event}
+${pool.map((c, i) => `${i}: ${c.company} — ${c.event} (${c.category})`).join('\n')}
 
-調査すべき内容：
-1. 企業の全盛期と何が優れていたか
-2. 失敗に至る詳細なタイムライン（日付・金額・人物名含む）
+数字だけ（例: 0）`,
+      },
+    ],
+  })
+
+  const idx = parseInt(extractText(response).trim()) || 0
+  return pool[Math.min(idx, pool.length - 1)]
+}
+
+// ── Step 4: deep research ─────────────────────────────────────────────────────
+
+async function deepResearch(selected) {
+  console.log(`📚  Step 4: deep research on ${selected.company}...`)
+
+  const response = await client.messages.create({
+    model: 'claude-opus-4-7',
+    max_tokens: 5000,
+    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 8 }],
+    messages: [
+      {
+        role: 'user',
+        content: `「${selected.company}」の次の事件についてディープリサーチしてください：${selected.event}
+
+以下の項目を徹底的に調査してください：
+1. 企業の歴史と全盛期（具体的な数字・年代）
+2. 失敗に至るタイムライン（日付・金額・関係者名）
 3. 経営陣の主要な意思決定とその背景
 4. 財務データ（売上・利益・負債の推移）
-5. 当時の市場環境・競合状況
+5. 市場環境・競合状況
 6. 組織文化・ガバナンス構造
-7. 海外の類似事例
+7. 海外の類似失敗事例（具体的な企業名）
 
-調査結果を詳細なJSON形式で返してください：
+調査後、以下のJSON形式で返してください（JSONの前後に余分な文章は不要）：
 {
   "company_full": "正式企業名",
   "founders": ["創業者名"],
-  "peak_facts": ["全盛期の事実（具体的な数字含む）"],
-  "timeline": [
-    {"date": "YYYY-MM", "event": "出来事"}
-  ],
-  "financial_data": {"peak_revenue": "数字", "debt_at_failure": "数字"},
-  "key_decisions": ["重要な意思決定"],
+  "peak_facts": ["具体的な数字を含む事実1", "事実2"],
+  "timeline": [{"date": "YYYY-MM", "event": "出来事"}],
+  "financial_data": {"peak_revenue": "売上", "debt_at_failure": "負債"},
+  "key_decisions": ["重要な意思決定1", "意思決定2"],
   "root_causes": {
     "market": "市場要因",
     "management": "経営要因",
@@ -187,105 +228,118 @@ async function deepResearch(selectedCase) {
     "organization": "組織要因",
     "external": "外部要因"
   },
-  "ceo_perspective": "当時のCEOの視点から見た意思決定の論理",
-  "global_comparisons": ["海外類似事例1", "海外類似事例2"],
-  "status": "倒産|撤退|スキャンダル|身売り|経営危機|解散",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
+  "ceo_perspective": "当時のCEO視点からの意思決定の論理（200字）",
+  "global_comparisons": ["海外事例1（企業名と概要）", "海外事例2"],
+  "status": "倒産",
+  "tags": ["タグ1", "タグ2", "タグ3", "タグ4", "タグ5"]
 }`,
       },
     ],
   })
 
-  const text = response.content
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('\n')
+  const text = extractText(response)
 
-  const match = text.match(/\{[\s\S]*\}/m)
-  if (match) {
+  // Try to extract JSON object
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start !== -1 && end !== -1) {
     try {
-      return JSON.parse(match[0])
+      return JSON.parse(text.slice(start, end + 1))
     } catch {
-      return { raw: text }
+      // Return raw text as fallback
     }
   }
   return { raw: text }
 }
 
-// ── Step 4: write article ─────────────────────────────────────────────────────
+// ── Step 5: write article ─────────────────────────────────────────────────────
 
-async function writeArticle(selectedCase, research, dateStr) {
-  console.log('✍️   Step 4: writing the article...')
+async function writeArticle(selected, research, dateStr) {
+  console.log('✍️   Step 5: writing the article...')
 
-  const prompt = `以下のリサーチデータをもとに、Keiei.RIPのための深い経営インサイト記事をMarkdown形式で書いてください。
-
-## 事例情報
-${JSON.stringify({ selectedCase, research }, null, 2)}
-
-## 記事フォーマット（厳守）
-
-frontmatterは以下の形式で記述してください：
-\`\`\`
----
-title: "タイトル（30字以内、インパクトのある日本語で）"
-company: "企業名"
-category: ${selectedCase.category}
-year: ${selectedCase.year}
-status: "${research.status || '経営危機'}"
-date: "${dateStr}"
-description: "2-3文の説明"
-tags: ${JSON.stringify(research.tags || ['経営', '失敗', '教訓'])}
----
-\`\`\`
-
-## 記事セクション
-
-### TL;DR
-- 4-5個の箇条書き。読者が30秒で核心を掴める内容
-
-### 企業概要と全盛期
-全盛期の具体的な数字、なぜ期待されたか、何が優れていたかを500-700字で
-
-### 何が起きたか
-崩壊のタイムラインを具体的な日付・数字・人物名を含めて600-800字で
-
-### 失敗の本質的原因
-#### 市場・競合環境
-#### 経営判断と意思決定
-#### 財務・資金構造
-#### 組織と文化
-#### 外部環境・規制
-各200-300字で、表面的な原因ではなく構造的・本質的な原因を
-
-### 経営者の意思決定を再構築する
-当時のCEOの視点から、なぜその決断が「合理的に見えた」のかを共感的に600-800字で分析。批判ではなく理解を。
-
-### 海外類似事例との比較
-1-2件の具体的な海外事例と比較し、「日本固有の問題か」「普遍的な失敗パターンか」を400-600字で
-
-### 経営者・起業家へのインサイト
-4-5個の具体的で反直感的な教訓。プラチナ的な一般論ではなく、この事例特有の深い示唆を
-
-### あなたが経営者だったら？
-読者が自分事として考えられる問い2-3個
-
----
-記事全体で3,000字以上の充実した内容にしてください。`
+  const researchSummary = research.raw
+    ? research.raw.slice(0, 3000)
+    : JSON.stringify(research, null, 2).slice(0, 3000)
 
   const response = await client.messages.create({
     model: 'claude-opus-4-7',
     max_tokens: 8000,
-    messages: [{ role: 'user', content: prompt }],
+    messages: [
+      {
+        role: 'user',
+        content: `以下のリサーチ情報をもとに、Keiei.RIPのための深い経営インサイト記事をMarkdown形式で書いてください。
+
+## 事例
+企業名: ${selected.company}
+出来事: ${selected.event}
+カテゴリ: ${selected.category}
+発生年: ${selected.year}
+
+## リサーチデータ
+${researchSummary}
+
+## 厳守するフォーマット
+
+まず以下のfrontmatterから書き始めてください（\`\`\`コードブロックなし）：
+---
+title: "インパクトのある記事タイトル（30字以内）"
+company: "${selected.company}"
+category: ${selected.category}
+year: ${selected.year}
+status: "${research.status || '経営危機'}"
+date: "${dateStr}"
+description: "記事の2〜3文の要約"
+tags: ${JSON.stringify(research.tags || ['経営', '失敗', '教訓'])}
+---
+
+その後、以下の見出しで本文を書いてください：
+
+## TL;DR
+（4〜5個の箇条書き）
+
+## 企業概要と全盛期
+（500〜700字、具体的な数字を含む）
+
+## 何が起きたか
+（600〜800字、タイムライン形式で）
+
+## 失敗の本質的原因
+
+### 市場・競合環境
+### 経営判断と意思決定
+### 財務・資金構造
+### 組織と文化
+### 外部環境・規制
+
+## 経営者の意思決定を再構築する
+（600〜800字、批判でなく共感的に）
+
+## 海外類似事例との比較
+（400〜600字）
+
+## 経営者・起業家へのインサイト
+（4〜5個の具体的で反直感的な教訓）
+
+## あなたが経営者だったら？
+（2〜3個の問い）
+
+記事全体3,000字以上で書いてください。`,
+      },
+    ],
   })
 
-  return response.content[0].text
+  return extractText(response)
 }
 
-// ── Step 5: save article ──────────────────────────────────────────────────────
+// ── Step 6: save article ──────────────────────────────────────────────────────
 
 function saveArticle(content, slug) {
+  // Ensure content starts with frontmatter (strip any preamble)
+  const fmStart = content.indexOf('---')
+  const cleaned = fmStart > 0 ? content.slice(fmStart) : content
+
   const filePath = path.join(ARTICLES_DIR, `${slug}.md`)
-  fs.writeFileSync(filePath, content, 'utf-8')
+  fs.writeFileSync(filePath, cleaned, 'utf-8')
   console.log(`✅  Saved: ${filePath}`)
   return filePath
 }
@@ -294,33 +348,33 @@ function saveArticle(content, slug) {
 
 async function main() {
   console.log('🌅  Keiei.RIP Daily Article Generator')
-  console.log(`📅  Date: ${today()}\n`)
+  const dateStr = todayJST()
+  console.log(`📅  Date: ${dateStr}\n`)
 
   try {
-    const dateStr = today()
+    // 1. Web search (free-form text)
+    const rawNews = await fetchNewsRaw()
 
-    // 1. Search
-    const candidates = await searchFailureNews()
-    console.log(`   Found ${candidates.length} candidates`)
+    // 2. Extract structured candidates
+    const candidates = await extractCandidates(rawNews)
 
-    // 2. Select
+    // 3. Select best case
     const selected = await selectBestCase(candidates)
-    console.log(`   Selected: ${selected.company} — ${selected.event}`)
+    console.log(`   ✓ Selected: ${selected.company} — ${selected.event}`)
 
-    // 3. Research
+    // 4. Deep research
     const research = await deepResearch(selected)
 
-    // 4. Write
-    const articleContent = await writeArticle(selected, research, dateStr)
+    // 5. Write article
+    const content = await writeArticle(selected, research, dateStr)
 
-    // 5. Save
-    const slug = slugify(dateStr, selected.company)
-    const savedPath = saveArticle(articleContent, slug)
+    // 6. Save
+    const slug = slugify(dateStr, selected.slug_hint || selected.company)
+    const filePath = saveArticle(content, slug)
 
-    console.log(`\n🎉  Done! Article saved to ${savedPath}`)
-    console.log('   Run `npm run build` or commit to trigger Vercel deploy.')
+    console.log(`\n🎉  Done! Saved to: ${filePath}`)
   } catch (err) {
-    console.error('❌  Error:', err)
+    console.error('❌  Fatal error:', err)
     process.exit(1)
   }
 }
