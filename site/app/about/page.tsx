@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'About',
@@ -9,9 +10,9 @@ export default function AboutPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-16">
       <div className="mb-10">
-        <a href="/" className="text-sm text-gray-400 hover:text-gray-700 font-sans transition-colors">
+        <Link href="/" className="text-sm text-gray-400 hover:text-gray-700 font-sans transition-colors">
           ← 記事一覧
-        </a>
+        </Link>
       </div>
 
       <header className="mb-12">

@@ -1,6 +1,7 @@
 import { getAllArticles, getArticle, getCategoryColor } from '@/lib/articles'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import Link from 'next/link'
 
 export async function generateStaticParams() {
   const articles = getAllArticles()
@@ -27,9 +28,9 @@ export default async function ArticlePage(props: PageProps<'/articles/[slug]'>) 
     <div className="max-w-3xl mx-auto px-6 py-16">
       {/* Breadcrumb */}
       <div className="mb-10">
-        <a href="/" className="text-sm text-gray-400 hover:text-gray-700 font-sans transition-colors">
+        <Link href="/" className="text-sm text-gray-400 hover:text-gray-700 font-sans transition-colors">
           ← 記事一覧
-        </a>
+        </Link>
       </div>
 
       {/* Header */}
@@ -79,12 +80,12 @@ export default async function ArticlePage(props: PageProps<'/articles/[slug]'>) 
 
       {/* Footer nav */}
       <div className="mt-20 pt-10 border-t border-gray-200">
-        <a
+        <Link
           href="/"
           className="text-sm text-gray-400 hover:text-gray-700 font-sans transition-colors"
         >
           ← 記事一覧に戻る
-        </a>
+        </Link>
       </div>
     </div>
   )
