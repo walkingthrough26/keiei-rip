@@ -48,3 +48,26 @@ jobs:
           git add site/content/articles/
           git diff --staged --quiet || git commit -m "feat: add daily article $(date +%Y-%m-%d)"
           git push
+
+      - name: Notify by email
+        if: ${{ github.event.inputs.dry_run != 'true' && secrets.RESEND_API_KEY != '' }}
+        run: |
+          NEW_FILE=$(git diff --name-only HEAD~1 HEAD -- 'site/content/articles/' | head -1)
+          if [ -z "$NEW_FILE" ]; then
+            echo "No new article found, skipping email."
+            exit 0
+          fi
+          SLUG=$(basename "$NEW_FILE" .md)
+          TITLE=$(grep '^title:' "$NEW_FILE" | sed 's/^title:[[:space:]]*//' | tr -d '"')
+          ARTICLE_URL="https://keiei.rip/articles/${SLUG}"
+
+          curl -s -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer ${{ secrets.RESEND_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"from\": \"Keiei.RIP <bot@keiei.rip>\",
+              \"to\": [\"so@ask.gr.jp\"],
+              \"subject\": \"【新着】${TITLE}\",
+              \"html\": \"<p>新しい記事が公開されました。</p><h2>${TITLE}</h2><p><a href='${ARTICLE_URL}'>${ARTICLE_URL}</a></p>\"
+            }"
+          echo "Email sent for: ${TITLE}"
