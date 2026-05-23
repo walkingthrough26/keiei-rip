@@ -1,6 +1,23 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Noto_Serif_JP, Noto_Sans_JP } from 'next/font/google'
 import './globals.css'
+
+const notoSerifJP = Noto_Serif_JP({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  variable: '--font-serif',
+  display: 'swap',
+  preload: false,
+})
+
+const notoSansJP = Noto_Sans_JP({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+  preload: false,
+})
 
 export const metadata: Metadata = {
   title: {
@@ -17,15 +34,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ja">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="ja" className={`${notoSerifJP.variable} ${notoSansJP.variable}`}>
       <body className="min-h-screen bg-stone-50">
         <header className="border-b border-gray-200 bg-white sticky top-0 z-10">
           <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
