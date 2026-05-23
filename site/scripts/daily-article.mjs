@@ -25,6 +25,40 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
+// Return all company names already covered in existing articles
+function getCoveredCompanies() {
+  const fileNames = fs.readdirSync(ARTICLES_DIR).filter((f) => f.endsWith('.md'))
+  const companies = []
+  for (const fileName of fileNames) {
+    try {
+      const fileContents = fs.readFileSync(path.join(ARTICLES_DIR, fileName), 'utf8')
+      const { data } = matter(fileContents)
+      if (data.company) companies.push(data.company)
+    } catch {}
+  }
+  return [...new Set(companies)]
+}
+
+// Normalize company name for loose matching (strip suffixes, whitespace)
+function normalizeCompany(name) {
+  return name
+    .toLowerCase()
+    .replace(/株式会社|ホールディングス|ホールディング|\bHD\b|inc\.|inc|corp\.|ltd\./gi, '')
+    .replace(/[\s・（）()「」\/]/g, '')
+    .trim()
+}
+
+// Return true if candidate company matches any already-covered company
+function isCoveredCompany(candidateName, coveredCompanies) {
+  const cand = normalizeCompany(candidateName)
+  if (cand.length < 2) return false
+  return coveredCompanies.some((covered) => {
+    const cov = normalizeCompany(covered)
+    if (cov.length < 2) return false
+    return cov.includes(cand) || cand.includes(cov)
+  })
+}
+
 function todayJST() {
   const d = new Date()
   const jst = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
@@ -101,6 +135,9 @@ async function fetchNewsRaw() {
 async function extractCandidates(rawText) {
   console.log('📋  Step 2: extracting structured candidates...')
 
+  const coveredCompanies = getCoveredCompanies()
+  const coveredList = coveredCompanies.map((c) => `・${c}`).join('\n')
+
   const response = await client.messages.create({
     model: 'claude-opus-4-7',
     max_tokens: 1500,
@@ -109,6 +146,9 @@ async function extractCandidates(rawText) {
         role: 'user',
         content: `以下のテキストから、日本の経営失敗事例を抽出してJSON配列として返してください。
 テキストに具体的な事例がない場合は、あなたの知識から最近（2023〜2026年）の代表的な日本の経営失敗を3件挙げてください。
+
+【重要】以下の企業はすでに記事化済みです。これらの企業および子会社・関連会社は必ず除外してください：
+${coveredList}
 
 テキスト：
 ${rawText}
@@ -158,19 +198,25 @@ DX失敗 / 新規事業失敗 / 経営判断 / 財務・M&A / コーポレート
 async function selectBestCase(candidates) {
   console.log('🎯  Step 3: selecting the most insightful case...')
 
-  if (candidates.length === 1) return candidates[0]
+  if (candidates.length === 1) {
+    const coveredSingle = getCoveredCompanies()
+    if (isCoveredCompany(candidates[0].company, coveredSingle)) {
+      console.warn(`⚠️  Only candidate (${candidates[0].company}) is already covered. Proceeding anyway.`)
+    }
+    return candidates[0]
+  }
 
-  // Exclude companies already covered in existing articles
-  const existing = fs
-    .readdirSync(ARTICLES_DIR)
-    .map((f) => f.replace(/\.md$/, '').toLowerCase())
+  // Exclude companies already covered in existing articles (company-name based)
+  const coveredCompanies = getCoveredCompanies()
+  const novel = candidates.filter((c) => !isCoveredCompany(c.company || '', coveredCompanies))
 
-  const novel = candidates.filter((c) => {
-    const hint = (c.slug_hint || c.company || '').toLowerCase()
-    return !existing.some((e) => e.includes(hint.slice(0, 5)))
-  })
-
+  if (novel.length === 0) {
+    console.warn('⚠️  All candidates are already covered companies. Retrying with broader search is recommended.')
+    // Use full list as last resort but log warning
+  }
   const pool = novel.length > 0 ? novel : candidates
+
+  console.log(`   Filtered ${candidates.length - pool.length} already-covered candidates. Pool: ${pool.length}`)
 
   const response = await client.messages.create({
     model: 'claude-opus-4-7',
