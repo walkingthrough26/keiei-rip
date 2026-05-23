@@ -16,6 +16,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import matter from 'gray-matter'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ARTICLES_DIR = path.join(__dirname, '..', 'content', 'articles')
@@ -282,13 +283,17 @@ ${researchSummary}
 
 まず以下のfrontmatterから書き始めてください（\`\`\`コードブロックなし）：
 ---
-title: "インパクトのある記事タイトル（30字以内）"
-company: "${selected.company}"
+title: >-
+  インパクトのある記事タイトル（30字以内）
+company: >-
+  ${selected.company}
 category: ${selected.category}
 year: ${selected.year}
-status: "${research.status || '経営危機'}"
+status: >-
+  ${research.status || '経営危機'}
 date: "${dateStr}"
-description: "記事の2〜3文の要約"
+description: >-
+  記事の2〜3文の要約（2〜3文）
 tags: ${JSON.stringify(research.tags || ['経営', '失敗', '教訓'])}
 ---
 
@@ -337,6 +342,13 @@ function saveArticle(content, slug) {
   // Ensure content starts with frontmatter (strip any preamble)
   const fmStart = content.indexOf('---')
   const cleaned = fmStart > 0 ? content.slice(fmStart) : content
+
+  // Validate frontmatter parses cleanly before writing
+  try {
+    matter(cleaned)
+  } catch (err) {
+    throw new Error(`Generated article has invalid YAML frontmatter: ${err.message}\n\nRaw content:\n${cleaned.slice(0, 500)}`)
+  }
 
   const filePath = path.join(ARTICLES_DIR, `${slug}.md`)
   fs.writeFileSync(filePath, cleaned, 'utf-8')
