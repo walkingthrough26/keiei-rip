@@ -2,6 +2,7 @@ import { getAllArticles, getArticle, getCategoryColor, getRelatedArticles } from
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import LikeButton from '@/components/LikeButton'
 
 export async function generateStaticParams() {
   const articles = getAllArticles()
@@ -96,6 +97,11 @@ export default async function ArticlePage(props: PageProps<'/articles/[slug]'>) 
         dangerouslySetInnerHTML={{ __html: article.contentHtml }}
         className="text-base leading-relaxed"
       />
+
+      {/* Like */}
+      <div className="mt-12 flex justify-center">
+        <LikeButton slug={slug} />
+      </div>
 
       {/* Related articles */}
       {related.length > 0 && (
