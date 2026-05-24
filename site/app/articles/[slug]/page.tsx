@@ -12,9 +12,26 @@ export async function generateMetadata(props: PageProps<'/articles/[slug]'>): Pr
   const { slug } = await props.params
   const article = await getArticle(slug)
   if (!article) return {}
+  const url = `https://keiei.rip/articles/${slug}`
   return {
     title: article.title,
     description: article.description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: 'article',
+      locale: 'ja_JP',
+      url,
+      siteName: 'Keiei.RIP',
+      title: article.title,
+      description: article.description,
+      publishedTime: article.date,
+      tags: article.tags,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description: article.description,
+    },
   }
 }
 

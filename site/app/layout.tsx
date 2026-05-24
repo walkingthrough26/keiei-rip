@@ -26,6 +26,25 @@ export const metadata: Metadata = {
   },
   description:
     '日本の象徴的な経営失敗を深くリサーチ。経営者・起業家・学生が次の挑戦に活かせる深いインサイトを届けます。',
+  metadataBase: new URL('https://keiei.rip'),
+  openGraph: {
+    type: 'website',
+    locale: 'ja_JP',
+    url: 'https://keiei.rip',
+    siteName: 'Keiei.RIP',
+    title: 'Keiei.RIP — 日本の経営失敗から学ぶ',
+    description:
+      '日本の象徴的な経営失敗を深くリサーチ。経営者・起業家・学生が次の挑戦に活かせる深いインサイトを届けます。',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Keiei.RIP — 日本の経営失敗から学ぶ',
+    description:
+      '日本の象徴的な経営失敗を深くリサーチ。経営者・起業家・学生が次の挑戦に活かせる深いインサイトを届けます。',
+  },
+  alternates: {
+    canonical: 'https://keiei.rip',
+  },
 }
 
 export default function RootLayout({
