@@ -107,3 +107,9 @@ export function getCategoryColor(category: ArticleCategory): string {
 export function getStatusLabel(status: ArticleStatus): string {
   return status
 }
+
+export function getRelatedArticles(currentSlug: string, category: ArticleCategory, limit = 3): ArticleMeta[] {
+  return getAllArticles()
+    .filter((a) => a.slug !== currentSlug && a.category === category)
+    .slice(0, limit)
+}

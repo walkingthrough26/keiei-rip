@@ -1,4 +1,4 @@
-import { getAllArticles, getArticle, getCategoryColor } from '@/lib/articles'
+import { getAllArticles, getArticle, getCategoryColor, getRelatedArticles } from '@/lib/articles'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
@@ -40,6 +40,8 @@ export default async function ArticlePage(props: PageProps<'/articles/[slug]'>) 
   const article = await getArticle(slug)
 
   if (!article) notFound()
+
+  const related = getRelatedArticles(slug, article.category)
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-16">
@@ -95,8 +97,31 @@ export default async function ArticlePage(props: PageProps<'/articles/[slug]'>) 
         className="text-base leading-relaxed"
       />
 
+      {/* Related articles */}
+      {related.length > 0 && (
+        <section className="mt-20 pt-10 border-t border-gray-200">
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest font-sans mb-6">
+            同じカテゴリの記事
+          </h2>
+          <div className="flex flex-col gap-4">
+            {related.map((r) => (
+              <Link
+                key={r.slug}
+                href={`/articles/${r.slug}`}
+                className="group flex flex-col gap-1 p-4 rounded-lg border border-gray-100 hover:border-gray-300 transition-colors"
+              >
+                <span className="text-xs text-gray-400 font-sans">{r.company} · {r.year}年</span>
+                <span className="text-sm font-medium text-gray-800 group-hover:text-red-700 transition-colors font-sans">
+                  {r.title}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Footer nav */}
-      <div className="mt-20 pt-10 border-t border-gray-200">
+      <div className="mt-10 pt-10 border-t border-gray-200">
         <Link
           href="/"
           className="text-sm text-gray-400 hover:text-gray-700 font-sans transition-colors"
