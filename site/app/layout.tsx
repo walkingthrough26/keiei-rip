@@ -45,6 +45,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://keiei.rip',
   },
+  verification: {
+    google: 'czlVhTOUEWtRlXg9zPQYNl8is_HqSHj2XB9hlAoloJw',
+  },
 }
 
 export default function RootLayout({
