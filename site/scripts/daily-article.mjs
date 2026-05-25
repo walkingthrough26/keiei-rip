@@ -1,7 +1,7 @@
 /**
  * daily-article.mjs
  *
- * Run every morning at 06:00 JST via GitHub Actions.
+ * Run every morning at 09:00 JST via GitHub Actions.
  *
  * Flow:
  *   1. Web search: gather raw text about recent Japanese business failures
@@ -25,18 +25,22 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-// Return all company names already covered in existing articles
+// Return all covered company names AND filename slugs from existing articles
 function getCoveredCompanies() {
   const fileNames = fs.readdirSync(ARTICLES_DIR).filter((f) => f.endsWith('.md'))
   const companies = []
+  const slugs = []
   for (const fileName of fileNames) {
+    // Extract the slug part after the date prefix (YYYY-MM-DD-)
+    const slugMatch = fileName.match(/^\d{4}-\d{2}-\d{2}-(.+)\.md$/)
+    if (slugMatch) slugs.push(slugMatch[1])
     try {
       const fileContents = fs.readFileSync(path.join(ARTICLES_DIR, fileName), 'utf8')
       const { data } = matter(fileContents)
       if (data.company) companies.push(data.company)
     } catch {}
   }
-  return [...new Set(companies)]
+  return { companies: [...new Set(companies)], slugs: [...new Set(slugs)] }
 }
 
 // Normalize company name for loose matching (strip suffixes, whitespace)
@@ -48,15 +52,32 @@ function normalizeCompany(name) {
     .trim()
 }
 
-// Return true if candidate company matches any already-covered company
-function isCoveredCompany(candidateName, coveredCompanies) {
+// Return true if candidate company matches any already-covered company or filename slug
+function isCoveredCompany(candidateName, coveredCompanies, coveredSlugs = [], candidateSlugHint = '') {
   const cand = normalizeCompany(candidateName)
+  const candSlug = normalizeCompany(candidateSlugHint)
+
+  // Check slug_hint against existing filename slugs (catches Japanese name / ASCII slug mismatches)
+  if (candSlug.length >= 2) {
+    const isSlugCovered = coveredSlugs.some((slug) => {
+      const s = slug.toLowerCase()
+      return s.includes(candSlug) || candSlug.includes(s)
+    })
+    if (isSlugCovered) return true
+  }
+
   if (cand.length < 2) return false
   return coveredCompanies.some((covered) => {
     const cov = normalizeCompany(covered)
     if (cov.length < 2) return false
     return cov.includes(cand) || cand.includes(cov)
   })
+}
+
+// Return true if an article for the given date already exists
+function articleExistsForDate(dateStr) {
+  const files = fs.readdirSync(ARTICLES_DIR).filter((f) => f.endsWith('.md'))
+  return files.some((f) => f.startsWith(dateStr))
 }
 
 function todayJST() {
@@ -135,7 +156,7 @@ async function fetchNewsRaw() {
 async function extractCandidates(rawText) {
   console.log('📋  Step 2: extracting structured candidates...')
 
-  const coveredCompanies = getCoveredCompanies()
+  const { companies: coveredCompanies } = getCoveredCompanies()
   const coveredList = coveredCompanies.map((c) => `・${c}`).join('\n')
 
   const response = await client.messages.create({
@@ -198,17 +219,19 @@ DX失敗 / 新規事業失敗 / 経営判断 / 財務・M&A / コーポレート
 async function selectBestCase(candidates) {
   console.log('🎯  Step 3: selecting the most insightful case...')
 
+  const { companies: coveredCompanies, slugs: coveredSlugs } = getCoveredCompanies()
+
   if (candidates.length === 1) {
-    const coveredSingle = getCoveredCompanies()
-    if (isCoveredCompany(candidates[0].company, coveredSingle)) {
+    if (isCoveredCompany(candidates[0].company, coveredCompanies, coveredSlugs, candidates[0].slug_hint || '')) {
       console.warn(`⚠️  Only candidate (${candidates[0].company}) is already covered. Proceeding anyway.`)
     }
     return candidates[0]
   }
 
-  // Exclude companies already covered in existing articles (company-name based)
-  const coveredCompanies = getCoveredCompanies()
-  const novel = candidates.filter((c) => !isCoveredCompany(c.company || '', coveredCompanies))
+  // Exclude companies already covered in existing articles (company-name and slug-based)
+  const novel = candidates.filter(
+    (c) => !isCoveredCompany(c.company || '', coveredCompanies, coveredSlugs, c.slug_hint || '')
+  )
 
   if (novel.length === 0) {
     console.warn('⚠️  All candidates are already covered companies. Retrying with broader search is recommended.')
@@ -410,6 +433,12 @@ async function main() {
   console.log(`📅  Date: ${dateStr}\n`)
 
   try {
+    // Guard: skip if an article for today already exists (prevents double-run)
+    if (articleExistsForDate(dateStr)) {
+      console.log(`ℹ️  Article for ${dateStr} already exists. Skipping.`)
+      process.exit(0)
+    }
+
     // 1. Web search (free-form text)
     const rawNews = await fetchNewsRaw()
 
