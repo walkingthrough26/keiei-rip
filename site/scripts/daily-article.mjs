@@ -20,27 +20,47 @@ import matter from 'gray-matter'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ARTICLES_DIR = path.join(__dirname, '..', 'content', 'articles')
+const COVERED_FILE = path.join(__dirname, '..', 'content', 'covered-companies.json')
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 5 })
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-// Return all covered company names AND filename slugs from existing articles
+// Read covered companies from JSON (authoritative source)
 function getCoveredCompanies() {
-  const fileNames = fs.readdirSync(ARTICLES_DIR).filter((f) => f.endsWith('.md'))
-  const companies = []
-  const slugs = []
-  for (const fileName of fileNames) {
-    // Extract the slug part after the date prefix (YYYY-MM-DD-)
-    const slugMatch = fileName.match(/^\d{4}-\d{2}-\d{2}-(.+)\.md$/)
-    if (slugMatch) slugs.push(slugMatch[1])
-    try {
-      const fileContents = fs.readFileSync(path.join(ARTICLES_DIR, fileName), 'utf8')
-      const { data } = matter(fileContents)
-      if (data.company) companies.push(data.company)
-    } catch {}
+  try {
+    const entries = JSON.parse(fs.readFileSync(COVERED_FILE, 'utf8'))
+    return {
+      companies: entries.map((e) => e.company),
+      slugs: entries.map((e) => e.slug),
+      entries,
+    }
+  } catch {
+    // Fallback: scan article frontmatter if JSON missing
+    console.warn('⚠️  covered-companies.json not found, falling back to article scan')
+    const fileNames = fs.readdirSync(ARTICLES_DIR).filter((f) => f.endsWith('.md'))
+    const companies = []
+    const slugs = []
+    for (const fileName of fileNames) {
+      const slugMatch = fileName.match(/^\d{4}-\d{2}-\d{2}-(.+)\.md$/)
+      if (slugMatch) slugs.push(slugMatch[1])
+      try {
+        const { data } = matter(fs.readFileSync(path.join(ARTICLES_DIR, fileName), 'utf8'))
+        if (data.company) companies.push(String(data.company).trim())
+      } catch {}
+    }
+    return { companies: [...new Set(companies)], slugs: [...new Set(slugs)], entries: [] }
   }
-  return { companies: [...new Set(companies)], slugs: [...new Set(slugs)] }
+}
+
+// Append a newly covered company to the JSON log
+function appendCoveredCompany(company, slug, ceo, dateStr) {
+  let entries = []
+  try {
+    entries = JSON.parse(fs.readFileSync(COVERED_FILE, 'utf8'))
+  } catch {}
+  entries.push({ company, slug, ceo: ceo || '', date: dateStr })
+  fs.writeFileSync(COVERED_FILE, JSON.stringify(entries, null, 2) + '\n', 'utf-8')
 }
 
 // Normalize company name for loose matching (strip suffixes, whitespace)
@@ -156,8 +176,26 @@ async function fetchNewsRaw() {
 async function extractCandidates(rawText) {
   console.log('📋  Step 2: extracting structured candidates...')
 
-  const { companies: coveredCompanies } = getCoveredCompanies()
-  const coveredList = coveredCompanies.map((c) => `・${c}`).join('\n')
+  const { entries, companies: coveredCompanies } = getCoveredCompanies()
+
+  // Build covered list with company name + slug + CEO for semantic matching
+  const coveredList = entries.length > 0
+    ? entries.map((e) => `・${e.company}（スラッグ: ${e.slug}${e.ceo ? `、代表者: ${e.ceo}` : ''}）`).join('\n')
+    : coveredCompanies.map((c) => `・${c}`).join('\n')
+
+  const jsonFormat = `[
+  {
+    "company": "企業名（日本語）",
+    "slug_hint": "企業名のローマ字または英語（例: softbank, sony, toyota）",
+    "event": "何が起きたか（1行、日本語）",
+    "year": 2025,
+    "category": "DX失敗",
+    "why_interesting": "なぜ深い学びがあるか（1〜2文）"
+  }
+]`
+
+  const coveredInstruction = `【重要】以下の企業はすでに記事化済みです。日本語名・英語名・略称・スラッグ・代表者名 のいずれかが一致または類似する企業は必ず除外してください（例: "オルツ" と "ALT Inc." は同一企業）：
+${coveredList}`
 
   const response = await client.messages.create({
     model: 'claude-opus-4-7',
@@ -168,23 +206,13 @@ async function extractCandidates(rawText) {
         content: `以下のテキストから、日本の経営失敗事例を抽出してJSON配列として返してください。
 テキストに具体的な事例がない場合は、あなたの知識から最近（2023〜2026年）の代表的な日本の経営失敗を3件挙げてください。
 
-【重要】以下の企業はすでに記事化済みです。これらの企業および子会社・関連会社は必ず除外してください：
-${coveredList}
+${coveredInstruction}
 
 テキスト：
 ${rawText}
 
 必ずこの形式のJSON配列だけを返してください（他の文章は不要）：
-[
-  {
-    "company": "企業名（日本語）",
-    "slug_hint": "企業名のローマ字または英語（例: softbank, sony, toyota）",
-    "event": "何が起きたか（1行、日本語）",
-    "year": 2025,
-    "category": "DX失敗",
-    "why_interesting": "なぜ深い学びがあるか（1〜2文）"
-  }
-]
+${jsonFormat}
 
 categoryは以下から選んでください：
 DX失敗 / 新規事業失敗 / 経営判断 / 財務・M&A / コーポレートガバナンス / 組織・文化 / 急成長の罠`,
@@ -200,18 +228,30 @@ DX失敗 / 新規事業失敗 / 経営判断 / 財務・M&A / コーポレート
     return candidates
   }
 
-  // Hard fallback: return a curated recent case
-  console.warn('⚠️  Extraction failed, using curated fallback case')
-  return [
-    {
-      company: 'テレビ東京HD',
-      slug_hint: 'tv-tokyo',
-      event: '2024年メタバース事業からの撤退と構造改革',
-      year: 2024,
-      category: '新規事業失敗',
-      why_interesting: 'コロナ禍に急拡大したメタバース投資の失敗は、多くの日本企業に共通する「流行追随型」戦略の問題を体現している。',
-    },
-  ]
+  // Dynamic fallback: ask Claude to suggest non-covered cases from its knowledge
+  console.warn('⚠️  Extraction failed, falling back to Claude knowledge-based selection')
+  const fallbackResponse = await client.messages.create({
+    model: 'claude-opus-4-7',
+    max_tokens: 800,
+    messages: [
+      {
+        role: 'user',
+        content: `${coveredInstruction}
+
+上記以外の、最近（2023〜2026年）の日本の経営失敗事例を3件、以下のJSON配列形式だけで返してください：
+${jsonFormat}`,
+      },
+    ],
+  })
+
+  const fallbackText = extractText(fallbackResponse)
+  const fallbackCandidates = parseJsonArray(fallbackText)
+  if (fallbackCandidates && fallbackCandidates.length > 0) {
+    console.log(`   Fallback extracted ${fallbackCandidates.length} candidates`)
+    return fallbackCandidates
+  }
+
+  throw new Error('Failed to extract any candidates even with fallback. Aborting.')
 }
 
 // ── Step 3: select best case ──────────────────────────────────────────────────
@@ -223,7 +263,7 @@ async function selectBestCase(candidates) {
 
   if (candidates.length === 1) {
     if (isCoveredCompany(candidates[0].company, coveredCompanies, coveredSlugs, candidates[0].slug_hint || '')) {
-      console.warn(`⚠️  Only candidate (${candidates[0].company}) is already covered. Proceeding anyway.`)
+      throw new Error(`Only candidate "${candidates[0].company}" is already covered. Aborting to avoid duplicate.`)
     }
     return candidates[0]
   }
@@ -407,7 +447,7 @@ tags: ${JSON.stringify(research.tags || ['経営', '失敗', '教訓'])}
 
 // ── Step 6: save article ──────────────────────────────────────────────────────
 
-function saveArticle(content, slug) {
+function saveArticle(content, slug, company, ceo, dateStr) {
   // Ensure content starts with frontmatter (strip any preamble)
   const fmStart = content.indexOf('---')
   const cleaned = fmStart > 0 ? content.slice(fmStart) : content
@@ -422,6 +462,11 @@ function saveArticle(content, slug) {
   const filePath = path.join(ARTICLES_DIR, `${slug}.md`)
   fs.writeFileSync(filePath, cleaned, 'utf-8')
   console.log(`✅  Saved: ${filePath}`)
+
+  // Record in covered-companies.json so future runs know this company is taken
+  appendCoveredCompany(company, slug, ceo, dateStr)
+  console.log(`📋  Recorded "${company}" in covered-companies.json`)
+
   return filePath
 }
 
@@ -457,7 +502,8 @@ async function main() {
 
     // 6. Save
     const slug = slugify(dateStr, selected.slug_hint || selected.company)
-    const filePath = saveArticle(content, slug)
+    const ceo = Array.isArray(research.founders) && research.founders.length > 0 ? research.founders[0] : ''
+    const filePath = saveArticle(content, slug, selected.company, ceo, dateStr)
 
     console.log(`\n🎉  Done! Saved to: ${filePath}`)
   } catch (err) {
