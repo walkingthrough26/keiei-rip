@@ -78,17 +78,13 @@ export default function Home() {
               href={`/articles/${article.slug}`}
               className="group flex items-center gap-5 py-5 hover:opacity-80 transition-opacity"
             >
-              {/* Thumbnail */}
-              <div className="w-[120px] h-[63px] shrink-0 overflow-hidden rounded bg-gray-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={ogUrl(article.title, article.company, article.category, article.year)}
-                  alt={article.title}
-                  width={120}
-                  height={63}
-                  className="block h-full w-full object-cover"
-                />
-              </div>
+              {/* Thumbnail — inline styles guarantee fixed size regardless of Tailwind compilation */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ogUrl(article.title, article.company, article.category, article.year)}
+                alt=""
+                style={{ display: 'block', width: 120, height: 63, objectFit: 'cover', flexShrink: 0, borderRadius: 4 }}
+              />
               {/* Text */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
