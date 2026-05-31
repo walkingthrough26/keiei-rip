@@ -35,22 +35,31 @@ jobs:
         run: npm ci
 
       - name: Generate daily article
+        id: generate
         working-directory: site
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-opus-4-5' }}
         run: node scripts/daily-article.mjs
 
+      - name: Validate generated site
+        working-directory: site
+        run: npm run lint && npm run build
+
       - name: Commit and push article
+        id: commit
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
           git config user.name "Keiei.RIP Bot"
           git config user.email "bot@keiei.rip"
+          NEW_FILE=$(git status --short site/content/articles/ | awk '$1 == "??" {print $2; exit}')
+          echo "new_file=$NEW_FILE" >> "$GITHUB_OUTPUT"
           git add site/content/articles/ site/content/covered-companies.json
           git diff --staged --quiet || git commit -m "feat: add daily article $(date +%Y-%m-%d)"
           git push
 
       - name: Post to X (Twitter)
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: ${{ github.event.inputs.dry_run != 'true' && steps.commit.outputs.new_file != '' }}
         continue-on-error: true
         env:
           X_API_KEY: ${{ secrets.X_API_KEY }}
@@ -58,11 +67,7 @@ jobs:
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
         run: |
-          NEW_FILE=$(git diff HEAD~1 HEAD --name-only --diff-filter=A | grep "site/content/articles/" | head -1)
-          if [ -z "$NEW_FILE" ]; then
-            echo "No new article committed, skipping tweet"
-            exit 0
-          fi
+          NEW_FILE="${{ steps.commit.outputs.new_file }}"
           SLUG=$(basename "$NEW_FILE" .md)
           echo "Tweeting article: $SLUG"
           cd site && node scripts/tweet-article.mjs "$SLUG"

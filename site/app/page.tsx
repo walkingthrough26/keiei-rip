@@ -79,15 +79,16 @@ export default function Home() {
               className="group flex items-center gap-5 py-5 hover:opacity-80 transition-opacity"
             >
               {/* Thumbnail */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={ogUrl(article.title, article.company, article.category, article.year)}
-                alt={article.title}
-                width={160}
-                height={84}
-                className="shrink-0 rounded object-cover"
-                style={{ width: 120, height: 63 }}
-              />
+              <div className="w-[120px] h-[63px] shrink-0 overflow-hidden rounded bg-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={ogUrl(article.title, article.company, article.category, article.year)}
+                  alt={article.title}
+                  width={120}
+                  height={63}
+                  className="block h-full w-full object-cover"
+                />
+              </div>
               {/* Text */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">

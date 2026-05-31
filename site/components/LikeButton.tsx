@@ -7,11 +7,17 @@ export default function LikeButton({ slug }: { slug: string }) {
   const [liked, setLiked] = useState(false)
 
   useEffect(() => {
-    setLiked(localStorage.getItem(`liked:${slug}`) === '1')
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) setLiked(localStorage.getItem(`liked:${slug}`) === '1')
+    })
     fetch(`/api/likes/${slug}`)
       .then((r) => r.json())
       .then((d) => setCount(d.count))
       .catch(() => setCount(0))
+    return () => {
+      cancelled = true
+    }
   }, [slug])
 
   async function handleLike() {

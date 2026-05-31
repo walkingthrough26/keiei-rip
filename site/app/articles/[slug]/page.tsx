@@ -57,7 +57,7 @@ export default async function ArticlePage(props: PageProps<'/articles/[slug]'>) 
       </div>
 
       {/* OG Hero Image */}
-      <div className="mb-10 rounded-xl overflow-hidden shadow-md">
+      <div className="mb-10 overflow-hidden rounded-xl shadow-md">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`/og?title=${encodeURIComponent(article.title)}&company=${encodeURIComponent(article.company)}&category=${encodeURIComponent(article.category)}&year=${encodeURIComponent(String(article.year))}`}

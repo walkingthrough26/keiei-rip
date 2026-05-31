@@ -21,8 +21,9 @@ import matter from 'gray-matter'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ARTICLES_DIR = path.join(__dirname, '..', 'content', 'articles')
 const COVERED_FILE = path.join(__dirname, '..', 'content', 'covered-companies.json')
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-5'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 5 })
+let client
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -30,10 +31,12 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries
 function getCoveredCompanies() {
   try {
     const entries = JSON.parse(fs.readFileSync(COVERED_FILE, 'utf8'))
+      .filter((e) => e && e.company && e.slug)
+    const uniqueEntries = dedupeCoveredEntries(entries)
     return {
-      companies: entries.map((e) => e.company),
-      slugs: entries.map((e) => e.slug),
-      entries,
+      companies: [...new Set(uniqueEntries.map((e) => String(e.company).trim()).filter(Boolean))],
+      slugs: [...new Set(uniqueEntries.map((e) => String(e.slug).trim()).filter(Boolean))],
+      entries: uniqueEntries,
     }
   } catch {
     // Fallback: scan article frontmatter if JSON missing
@@ -59,17 +62,47 @@ function appendCoveredCompany(company, slug, ceo, dateStr) {
   try {
     entries = JSON.parse(fs.readFileSync(COVERED_FILE, 'utf8'))
   } catch {}
-  entries.push({ company, slug, ceo: ceo || '', date: dateStr })
-  fs.writeFileSync(COVERED_FILE, JSON.stringify(entries, null, 2) + '\n', 'utf-8')
+  const nextEntries = dedupeCoveredEntries([
+    ...entries,
+    { company, slug, ceo: ceo || '', date: dateStr },
+  ])
+  fs.writeFileSync(COVERED_FILE, JSON.stringify(nextEntries, null, 2) + '\n', 'utf-8')
 }
 
 // Normalize company name for loose matching (strip suffixes, whitespace)
 function normalizeCompany(name) {
-  return name
+  return String(name ?? '')
     .toLowerCase()
-    .replace(/株式会社|ホールディングス|ホールディング|\bHD\b|inc\.|inc|corp\.|ltd\./gi, '')
-    .replace(/[\s・（）()「」\/]/g, '')
+    .replace(/株式会社|有限会社|合同会社|ホールディングス|ホールディング|\bHD\b|inc\.|inc|corp\.|corporation|co\.|ltd\.|limited/gi, '')
+    .replace(/[\s・（）()「」\/.,、。・-]/g, '')
     .trim()
+}
+
+function normalizeSlug(slug) {
+  return String(slug ?? '')
+    .toLowerCase()
+    .replace(/^\d{4}-\d{2}-\d{2}-/, '')
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+function dedupeCoveredEntries(entries) {
+  const seen = new Set()
+  const unique = []
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    if (!entry || !entry.company || !entry.slug) continue
+    const company = String(entry.company).trim()
+    const slug = String(entry.slug).trim()
+    const key = `${normalizeCompany(company)}:${normalizeSlug(slug)}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push({
+      company,
+      slug,
+      ceo: entry.ceo ? String(entry.ceo).trim() : '',
+      date: entry.date ? String(entry.date).trim() : '',
+    })
+  }
+  return unique
 }
 
 // Return true if candidate company matches any already-covered company or filename slug
@@ -80,7 +113,7 @@ function isCoveredCompany(candidateName, coveredCompanies, coveredSlugs = [], ca
   // Check slug_hint against existing filename slugs (catches Japanese name / ASCII slug mismatches)
   if (candSlug.length >= 2) {
     const isSlugCovered = coveredSlugs.some((slug) => {
-      const s = slug.toLowerCase()
+      const s = normalizeSlug(slug)
       return s.includes(candSlug) || candSlug.includes(s)
     })
     if (isSlugCovered) return true
@@ -101,12 +134,14 @@ function articleExistsForDate(dateStr) {
 }
 
 function todayJST() {
-  const d = new Date()
-  const jst = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
-  const y = jst.getFullYear()
-  const m = String(jst.getMonth() + 1).padStart(2, '0')
-  const day = String(jst.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${value.year}-${value.month}-${value.day}`
 }
 
 function slugify(date, company) {
@@ -143,13 +178,62 @@ function parseJsonArray(text) {
   }
 }
 
+function buildCoveredInstruction() {
+  const { entries, companies: coveredCompanies } = getCoveredCompanies()
+  const coveredList = entries.length > 0
+    ? entries.map((e) => `・${e.company}（スラッグ: ${e.slug}${e.ceo ? `、代表者: ${e.ceo}` : ''}）`).join('\n')
+    : coveredCompanies.map((c) => `・${c}`).join('\n')
+
+  return `【重要】以下の企業はすでに記事化済みです。日本語名・英語名・略称・スラッグ・代表者名 のいずれかが一致または類似する企業は必ず除外してください（例: "オルツ" と "ALT Inc." は同一企業）：
+${coveredList}`
+}
+
+const jsonFormat = `[
+  {
+    "company": "企業名（日本語）",
+    "slug_hint": "企業名のローマ字または英語（例: softbank, sony, toyota）",
+    "event": "何が起きたか（1行、日本語）",
+    "year": 2025,
+    "category": "DX失敗",
+    "why_interesting": "なぜ深い学びがあるか（1〜2文）"
+  }
+]`
+
+async function fallbackCandidates(reason) {
+  console.warn(`⚠️  ${reason}, falling back to Claude knowledge-based selection`)
+  const fallbackResponse = await client.messages.create({
+    model: MODEL,
+    max_tokens: 800,
+    messages: [
+      {
+        role: 'user',
+        content: `${buildCoveredInstruction()}
+
+上記以外の、最近（2023〜2026年）の日本の経営失敗事例を5件、以下のJSON配列形式だけで返してください：
+${jsonFormat}
+
+categoryは以下から選んでください：
+DX失敗 / 新規事業失敗 / 経営判断 / 財務・M&A / コーポレートガバナンス / 組織・文化 / 急成長の罠`,
+      },
+    ],
+  })
+
+  const fallbackText = extractText(fallbackResponse)
+  const fallback = parseJsonArray(fallbackText)
+  if (fallback && fallback.length > 0) {
+    console.log(`   Fallback extracted ${fallback.length} candidates`)
+    return fallback
+  }
+  throw new Error('Failed to extract any candidates even with fallback. Aborting.')
+}
+
 // ── Step 1: web search ────────────────────────────────────────────────────────
 
 async function fetchNewsRaw() {
   console.log('🔍  Step 1: web search for recent Japanese business failures...')
 
   const response = await client.messages.create({
-    model: 'claude-opus-4-7',
+    model: MODEL,
     max_tokens: 3000,
     tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6 }],
     messages: [
@@ -176,29 +260,10 @@ async function fetchNewsRaw() {
 async function extractCandidates(rawText) {
   console.log('📋  Step 2: extracting structured candidates...')
 
-  const { entries, companies: coveredCompanies } = getCoveredCompanies()
-
-  // Build covered list with company name + slug + CEO for semantic matching
-  const coveredList = entries.length > 0
-    ? entries.map((e) => `・${e.company}（スラッグ: ${e.slug}${e.ceo ? `、代表者: ${e.ceo}` : ''}）`).join('\n')
-    : coveredCompanies.map((c) => `・${c}`).join('\n')
-
-  const jsonFormat = `[
-  {
-    "company": "企業名（日本語）",
-    "slug_hint": "企業名のローマ字または英語（例: softbank, sony, toyota）",
-    "event": "何が起きたか（1行、日本語）",
-    "year": 2025,
-    "category": "DX失敗",
-    "why_interesting": "なぜ深い学びがあるか（1〜2文）"
-  }
-]`
-
-  const coveredInstruction = `【重要】以下の企業はすでに記事化済みです。日本語名・英語名・略称・スラッグ・代表者名 のいずれかが一致または類似する企業は必ず除外してください（例: "オルツ" と "ALT Inc." は同一企業）：
-${coveredList}`
+  const coveredInstruction = buildCoveredInstruction()
 
   const response = await client.messages.create({
-    model: 'claude-opus-4-7',
+    model: MODEL,
     max_tokens: 1500,
     messages: [
       {
@@ -228,30 +293,7 @@ DX失敗 / 新規事業失敗 / 経営判断 / 財務・M&A / コーポレート
     return candidates
   }
 
-  // Dynamic fallback: ask Claude to suggest non-covered cases from its knowledge
-  console.warn('⚠️  Extraction failed, falling back to Claude knowledge-based selection')
-  const fallbackResponse = await client.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 800,
-    messages: [
-      {
-        role: 'user',
-        content: `${coveredInstruction}
-
-上記以外の、最近（2023〜2026年）の日本の経営失敗事例を3件、以下のJSON配列形式だけで返してください：
-${jsonFormat}`,
-      },
-    ],
-  })
-
-  const fallbackText = extractText(fallbackResponse)
-  const fallbackCandidates = parseJsonArray(fallbackText)
-  if (fallbackCandidates && fallbackCandidates.length > 0) {
-    console.log(`   Fallback extracted ${fallbackCandidates.length} candidates`)
-    return fallbackCandidates
-  }
-
-  throw new Error('Failed to extract any candidates even with fallback. Aborting.')
+  return fallbackCandidates('Extraction failed')
 }
 
 // ── Step 3: select best case ──────────────────────────────────────────────────
@@ -263,7 +305,7 @@ async function selectBestCase(candidates) {
 
   if (candidates.length === 1) {
     if (isCoveredCompany(candidates[0].company, coveredCompanies, coveredSlugs, candidates[0].slug_hint || '')) {
-      throw new Error(`Only candidate "${candidates[0].company}" is already covered. Aborting to avoid duplicate.`)
+      return null
     }
     return candidates[0]
   }
@@ -274,15 +316,14 @@ async function selectBestCase(candidates) {
   )
 
   if (novel.length === 0) {
-    console.warn('⚠️  All candidates are already covered companies. Retrying with broader search is recommended.')
-    // Use full list as last resort but log warning
+    return null
   }
-  const pool = novel.length > 0 ? novel : candidates
+  const pool = novel
 
   console.log(`   Filtered ${candidates.length - pool.length} already-covered candidates. Pool: ${pool.length}`)
 
   const response = await client.messages.create({
-    model: 'claude-opus-4-7',
+    model: MODEL,
     max_tokens: 5,
     messages: [
       {
@@ -306,7 +347,7 @@ async function deepResearch(selected) {
   console.log(`📚  Step 4: deep research on ${selected.company}...`)
 
   const response = await client.messages.create({
-    model: 'claude-opus-4-7',
+    model: MODEL,
     max_tokens: 5000,
     tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 8 }],
     messages: [
@@ -372,7 +413,7 @@ async function writeArticle(selected, research, dateStr) {
     : JSON.stringify(research, null, 2).slice(0, 3000)
 
   const response = await client.messages.create({
-    model: 'claude-opus-4-7',
+    model: MODEL,
     max_tokens: 8000,
     messages: [
       {
@@ -478,6 +519,11 @@ async function main() {
   console.log(`📅  Date: ${dateStr}\n`)
 
   try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('Missing ANTHROPIC_API_KEY environment variable.')
+    }
+    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 5 })
+
     // Guard: skip if an article for today already exists (prevents double-run)
     if (articleExistsForDate(dateStr)) {
       console.log(`ℹ️  Article for ${dateStr} already exists. Skipping.`)
@@ -488,10 +534,17 @@ async function main() {
     const rawNews = await fetchNewsRaw()
 
     // 2. Extract structured candidates
-    const candidates = await extractCandidates(rawNews)
+    let candidates = await extractCandidates(rawNews)
 
     // 3. Select best case
-    const selected = await selectBestCase(candidates)
+    let selected = await selectBestCase(candidates)
+    if (!selected) {
+      candidates = await fallbackCandidates('All candidates are already covered')
+      selected = await selectBestCase(candidates)
+    }
+    if (!selected) {
+      throw new Error('Fallback candidates were also already covered. Aborting to avoid duplicate coverage.')
+    }
     console.log(`   ✓ Selected: ${selected.company} — ${selected.event}`)
 
     // 4. Deep research

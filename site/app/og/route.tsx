@@ -1,7 +1,10 @@
 import { ImageResponse } from 'next/og'
 import { NextRequest } from 'next/server'
+import type { ReactElement } from 'react'
 import fs from 'fs'
 import path from 'path'
+
+export const runtime = 'nodejs'
 
 const CATEGORY_COLORS: Record<string, string> = {
   'DX失敗':               '#2563eb',
@@ -40,21 +43,67 @@ async function getFont(origin: string): Promise<ArrayBuffer | null> {
   return null
 }
 
+function clampParam(value: string, maxLength: number) {
+  return value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, maxLength)
+}
+
+function createImageResponse(
+  element: ReactElement,
+  fontData: ArrayBuffer | null,
+) {
+  return new ImageResponse(element, {
+    width: 1200,
+    height: 630,
+    fonts: fontData
+      ? [{ name: 'NotoSansJP', data: fontData, weight: 700, style: 'normal' }]
+      : [],
+  })
+}
+
+function fallbackImage(fontData: ArrayBuffer | null) {
+  const ff = fontData ? '"NotoSansJP"' : 'sans-serif'
+  return createImageResponse(
+    (
+      <div style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        background: '#111',
+        color: '#f5f5f0',
+        padding: 80,
+        fontFamily: ff,
+      }}>
+        <div style={{ display: 'flex', fontSize: 72, fontWeight: 700 }}>
+          Keiei.RIP
+        </div>
+        <div style={{ display: 'flex', marginTop: 24, fontSize: 30, color: '#bbb' }}>
+          日本の経営失敗から学ぶ
+        </div>
+      </div>
+    ),
+    fontData,
+  )
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = req.nextUrl
-  const title    = searchParams.get('title')    ?? 'Keiei.RIP'
-  const company  = searchParams.get('company')  ?? ''
-  const category = searchParams.get('category') ?? ''
-  const year     = searchParams.get('year')     ?? ''
+  const title    = clampParam(searchParams.get('title')    ?? 'Keiei.RIP', 90)
+  const company  = clampParam(searchParams.get('company')  ?? '', 60)
+  const category = clampParam(searchParams.get('category') ?? '', 30)
+  const year     = clampParam(searchParams.get('year')     ?? '', 4)
 
-  const accent    = CATEGORY_COLORS[category] ?? '#c0392b'
-  const [bg1, bg2] = CATEGORY_BG[category] ?? ['#160404', '#0f0f0f']
-  const fontSize  = title.length > 22 ? 46 : title.length > 14 ? 54 : 62
-  const fontData  = await getFont(origin)
-  const ff        = fontData ? '"NotoSansJP"' : 'sans-serif'
+  let fontData: ArrayBuffer | null = null
+  try {
+    fontData = await getFont(origin)
+    const accent    = CATEGORY_COLORS[category] ?? '#c0392b'
+    const [bg1, bg2] = CATEGORY_BG[category] ?? ['#160404', '#0f0f0f']
+    const fontSize  = title.length > 22 ? 46 : title.length > 14 ? 54 : 62
+    const ff        = fontData ? '"NotoSansJP"' : 'sans-serif'
 
-  return new ImageResponse(
-    (
+    return createImageResponse(
+      (
       <div style={{
         width: '100%', height: '100%',
         display: 'flex', flexDirection: 'column',
@@ -187,13 +236,11 @@ export async function GET(req: NextRequest) {
         </div>
 
       </div>
-    ),
-    {
-      width: 1200,
-      height: 630,
-      fonts: fontData
-        ? [{ name: 'NotoSansJP', data: fontData, weight: 700, style: 'normal' }]
-        : [],
-    }
-  )
+      ),
+      fontData,
+    )
+  } catch (err) {
+    console.error('Failed to render OG image:', err)
+    return fallbackImage(fontData)
+  }
 }

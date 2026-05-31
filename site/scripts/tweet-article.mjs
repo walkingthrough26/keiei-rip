@@ -17,9 +17,13 @@ import matter from 'gray-matter'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ARTICLES_DIR = path.join(__dirname, '..', 'content', 'articles')
 
-const slug = process.argv[2]
+const slug = (process.argv[2] || '').replace(/\.md$/, '')
 if (!slug) {
   console.error('Usage: node scripts/tweet-article.mjs <slug>')
+  process.exit(1)
+}
+if (slug.includes('/') || slug.includes('\\') || slug.includes('..')) {
+  console.error('Invalid slug. Pass a content/articles filename without path separators.')
   process.exit(1)
 }
 
@@ -34,10 +38,14 @@ const { data } = matter(fs.readFileSync(filePath, 'utf8'))
 const title = String(data.title ?? '').trim()
 const company = String(data.company ?? '').trim()
 const description = String(data.description ?? '').trim()
+if (!title || !company || !description) {
+  console.error(`Article frontmatter is missing title, company, or description: ${filePath}`)
+  process.exit(1)
+}
 const articleUrl = `https://keiei.rip/articles/${slug}`
 
 // First sentence of description
-const firstSentence = (description.split('。')[0] + '。').slice(0, 80)
+const firstSentence = (description.includes('。') ? `${description.split('。')[0]}。` : description).slice(0, 80)
 
 // Build tweet (max 280 chars — URL counts as 23 chars on X)
 const hashtags = '#経営 #起業 #ビジネス'
