@@ -56,6 +56,18 @@ export default async function ArticlePage(props: PageProps<'/articles/[slug]'>) 
         </Link>
       </div>
 
+      {/* OG Hero Image */}
+      <div className="mb-10 rounded-xl overflow-hidden shadow-md">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/og?title=${encodeURIComponent(article.title)}&company=${encodeURIComponent(article.company)}&category=${encodeURIComponent(article.category)}&year=${encodeURIComponent(String(article.year))}`}
+          alt={article.title}
+          width={1200}
+          height={630}
+          className="w-full h-auto"
+        />
+      </div>
+
       {/* Header */}
       <header className="mb-12 pb-12 border-b border-gray-200">
         <div className="flex items-center gap-3 mb-5">
