@@ -142,5 +142,29 @@
     "slug": "iwaki-shinkumi",
     "ceo": "",
     "date": "2026-05-25"
+  },
+  {
+    "company": "三菱UFJ銀行",
+    "slug": "mufg-bank",
+    "ceo": "",
+    "date": "2026-05-26"
+  },
+  {
+    "company": "グリコ",
+    "slug": "glico",
+    "ceo": "",
+    "date": "2026-05-27"
+  },
+  {
+    "company": "アサヒグループホールディングス",
+    "slug": "asahi-group-holdings",
+    "ceo": "",
+    "date": "2026-05-28"
+  },
+  {
+    "company": "リソー教育",
+    "slug": "riso-kyoiku",
+    "ceo": "",
+    "date": "2026-05-29"
   }
 ]
