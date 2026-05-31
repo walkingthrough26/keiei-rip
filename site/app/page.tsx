@@ -76,12 +76,13 @@ export default function Home() {
             <a
               key={article.slug}
               href={`/articles/${article.slug}`}
-              className="group flex items-center gap-5 py-5 hover:opacity-80 transition-opacity"
+              className="group flex w-full items-center gap-5 overflow-hidden py-5 hover:opacity-80 transition-opacity"
             >
               {/* Thumbnail — background-image never affects flex layout */}
               <div
                 role="img"
                 aria-hidden="true"
+                className="h-[63px] w-[120px] flex-none"
                 style={{
                   width: 120,
                   height: 63,
@@ -94,26 +95,26 @@ export default function Home() {
                 }}
               />
               {/* Text */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+              <div className="min-w-0 flex-[1_1_0%] overflow-hidden">
+                <div className="mb-1 flex min-w-0 items-center gap-2 overflow-hidden">
                   <span className={`text-xs px-2 py-0.5 font-sans font-medium rounded ${getCategoryColor(article.category)}`}>
                     {article.category}
                   </span>
-                  <span className="text-xs text-gray-400 font-sans">{article.year}年</span>
+                  <span className="shrink-0 text-xs text-gray-400 font-sans">{article.year}年</span>
                 </div>
-                <h3 className="text-base font-bold text-gray-900 group-hover:text-red-700 transition-colors leading-snug mb-1">
+                <h3 className="mb-1 truncate text-base font-bold leading-snug text-gray-900 transition-colors group-hover:text-red-700">
                   {article.title}
                 </h3>
-                <p className="text-sm text-gray-500 font-sans line-clamp-1 leading-relaxed">
+                <p className="line-clamp-1 overflow-hidden text-sm leading-relaxed text-gray-500 font-sans">
                   {article.description}
                 </p>
               </div>
               {/* Meta */}
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 font-sans rounded whitespace-nowrap">
+              <div className="flex w-28 flex-none flex-col items-end gap-1 overflow-hidden sm:w-36">
+                <span className="max-w-full truncate rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 font-sans">
                   {article.status}
                 </span>
-                <time className="text-xs text-gray-400 font-sans whitespace-nowrap">{article.date}</time>
+                <time className="max-w-full truncate text-xs text-gray-400 font-sans">{article.date}</time>
               </div>
             </a>
           ))}
