@@ -14,6 +14,7 @@ export async function generateMetadata(props: PageProps<'/articles/[slug]'>): Pr
   const article = await getArticle(slug)
   if (!article) return {}
   const url = `https://keiei.rip/articles/${slug}`
+  const ogImageUrl = `https://keiei.rip/og?title=${encodeURIComponent(article.title)}&company=${encodeURIComponent(article.company)}&category=${encodeURIComponent(article.category)}&year=${encodeURIComponent(String(article.year))}`
   return {
     title: article.title,
     description: article.description,
@@ -27,11 +28,13 @@ export async function generateMetadata(props: PageProps<'/articles/[slug]'>): Pr
       description: article.description,
       publishedTime: article.date,
       tags: article.tags,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: article.title }],
     },
     twitter: {
       card: 'summary_large_image',
       title: article.title,
       description: article.description,
+      images: [ogImageUrl],
     },
   }
 }
