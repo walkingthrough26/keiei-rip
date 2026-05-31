@@ -1,5 +1,9 @@
 import { getAllArticles, getCategoryColor } from '@/lib/articles'
 
+function ogUrl(title: string, company: string, category: string, year: number) {
+  return `/og?title=${encodeURIComponent(title)}&company=${encodeURIComponent(company)}&category=${encodeURIComponent(category)}&year=${encodeURIComponent(String(year))}`
+}
+
 export default function Home() {
   const articles = getAllArticles()
   const featured = articles[0]
@@ -27,26 +31,37 @@ export default function Home() {
         <section className="mb-16">
           <p className="text-xs uppercase tracking-widest text-gray-400 font-sans mb-6">最新記事</p>
           <a href={`/articles/${featured.slug}`} className="group block">
-            <div className="border border-gray-200 bg-white p-8 hover:border-red-300 transition-colors">
-              <div className="flex items-center gap-3 mb-4">
-                <span className={`text-xs px-2 py-1 font-sans font-medium rounded ${getCategoryColor(featured.category)}`}>
-                  {featured.category}
-                </span>
-                <span className="text-xs text-gray-400 font-sans">{featured.year}年</span>
-                <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 font-sans rounded">
-                  {featured.status}
-                </span>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-red-700 transition-colors leading-snug">
-                {featured.title}
-              </h2>
-              <p className="text-gray-500 font-sans text-sm leading-relaxed">
-                {featured.description}
-              </p>
-              <div className="mt-6 flex items-center gap-2 text-xs text-gray-400 font-sans">
-                <time>{featured.date}</time>
-                <span>·</span>
-                <span>{featured.company}</span>
+            <div className="border border-gray-200 bg-white hover:border-red-300 transition-colors overflow-hidden">
+              {/* OG thumbnail */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ogUrl(featured.title, featured.company, featured.category, featured.year)}
+                alt={featured.title}
+                width={1200}
+                height={630}
+                className="w-full h-auto"
+              />
+              <div className="p-8">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className={`text-xs px-2 py-1 font-sans font-medium rounded ${getCategoryColor(featured.category)}`}>
+                    {featured.category}
+                  </span>
+                  <span className="text-xs text-gray-400 font-sans">{featured.year}年</span>
+                  <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 font-sans rounded">
+                    {featured.status}
+                  </span>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-red-700 transition-colors leading-snug">
+                  {featured.title}
+                </h2>
+                <p className="text-gray-500 font-sans text-sm leading-relaxed">
+                  {featured.description}
+                </p>
+                <div className="mt-6 flex items-center gap-2 text-xs text-gray-400 font-sans">
+                  <time>{featured.date}</time>
+                  <span>·</span>
+                  <span>{featured.company}</span>
+                </div>
               </div>
             </div>
           </a>
@@ -61,10 +76,21 @@ export default function Home() {
             <a
               key={article.slug}
               href={`/articles/${article.slug}`}
-              className="group flex items-start justify-between py-6 gap-6 hover:opacity-80 transition-opacity"
+              className="group flex items-center gap-5 py-5 hover:opacity-80 transition-opacity"
             >
+              {/* Thumbnail */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ogUrl(article.title, article.company, article.category, article.year)}
+                alt={article.title}
+                width={160}
+                height={84}
+                className="shrink-0 rounded object-cover"
+                style={{ width: 120, height: 63 }}
+              />
+              {/* Text */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-1">
                   <span className={`text-xs px-2 py-0.5 font-sans font-medium rounded ${getCategoryColor(article.category)}`}>
                     {article.category}
                   </span>
@@ -73,10 +99,11 @@ export default function Home() {
                 <h3 className="text-base font-bold text-gray-900 group-hover:text-red-700 transition-colors leading-snug mb-1">
                   {article.title}
                 </h3>
-                <p className="text-sm text-gray-500 font-sans line-clamp-2 leading-relaxed">
+                <p className="text-sm text-gray-500 font-sans line-clamp-1 leading-relaxed">
                   {article.description}
                 </p>
               </div>
+              {/* Meta */}
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 font-sans rounded whitespace-nowrap">
                   {article.status}
