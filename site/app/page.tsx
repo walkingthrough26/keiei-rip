@@ -78,15 +78,21 @@ export default function Home() {
               href={`/articles/${article.slug}`}
               className="group flex items-center gap-5 py-5 hover:opacity-80 transition-opacity"
             >
-              {/* Thumbnail — container div enforces hard 120×63 clip */}
-              <div style={{ width: 120, height: 63, flexShrink: 0, overflow: 'hidden', borderRadius: 4, background: '#e5e7eb' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={ogUrl(article.title, article.company, article.category, article.year)}
-                  alt=""
-                  style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              </div>
+              {/* Thumbnail — background-image never affects flex layout */}
+              <div
+                role="img"
+                aria-hidden="true"
+                style={{
+                  width: 120,
+                  height: 63,
+                  flexShrink: 0,
+                  borderRadius: 4,
+                  backgroundImage: `url("${ogUrl(article.title, article.company, article.category, article.year)}")`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundColor: '#e5e7eb',
+                }}
+              />
               {/* Text */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
