@@ -1,0 +1,31 @@
+<!-- @dsCard group="Brand" viewport="700x300" name="ワードマーク" subtitle="KEIEI.RIP — Spectral の英字、朱の .RIP" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { padding: 0; background: var(--paper); display: grid; place-items: center; min-height: 100vh; }
+  .stack { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+  .wm { font-family: var(--font-latin); font-weight: 700; font-size: 52px; line-height: 1; letter-spacing: .005em; color: var(--sumi); display: inline-flex; align-items: baseline; }
+  .wm .rip { color: var(--shu-500); }
+  /* lockup: seal + wordmark */
+  .lockup { display: flex; align-items: center; gap: 14px; background: var(--sumi); padding: 16px 24px; border-radius: 2px; }
+  .lockup .seal { width: 38px; height: 38px; flex: none; background: var(--shu-500); border-radius: 3px; display: grid; place-items: center; box-shadow: 0 1px 1px rgba(143,36,21,.35); }
+  .lockup .seal b { font-family: var(--font-display); color: var(--paper); font-size: 22px; font-weight: 900; line-height: 1; }
+  .lockup .wm { font-size: 30px; color: var(--paper); }
+  .lockup .wm .rip { color: var(--shu-400); }
+  .latin { font-family: var(--font-mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="stack">
+    <div class="wm">KEIEI<span class="rip">.RIP</span></div>
+    <div class="lockup">
+      <span class="seal"><b>経</b></span>
+      <span class="wm">KEIEI<span class="rip">.RIP</span></span>
+    </div>
+    <div class="latin">経営 &middot; REST IN PEACE</div>
+  </div>
+</body>
+</html>

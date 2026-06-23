@@ -1,0 +1,30 @@
+<!-- @dsCard group="Brand" viewport="700x260" name="朱印 / Seal mark" subtitle="弔いの判子 — アイコン/ファビコンに" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { padding: 0; background: var(--paper); display: grid; place-items: center; min-height: 100vh; }
+  .row { display: flex; gap: 36px; align-items: center; }
+  .seal { background: var(--shu-500); border-radius: 3px; display: grid; place-items: center; box-shadow: 0 1px 1px rgba(143,36,21,.35); }
+  .seal b { font-family: var(--font-display); color: var(--paper); font-weight: 900; line-height: 1; }
+  .seal.lg { width: 132px; height: 132px; }
+  .seal.lg b { font-size: 76px; }
+  .seal.md { width: 72px; height: 72px; }
+  .seal.md b { font-size: 40px; }
+  .seal.sm { width: 40px; height: 40px; }
+  .seal.sm b { font-size: 22px; }
+  .seal.outline { background: transparent; border: 2.5px solid var(--shu-500); box-shadow: none; }
+  .seal.outline b { color: var(--shu-500); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="seal lg"><b>経</b></div>
+    <div class="seal md"><b>経</b></div>
+    <div class="seal sm"><b>経</b></div>
+    <div class="seal md outline"><b>卒</b></div>
+  </div>
+</body>
+</html>

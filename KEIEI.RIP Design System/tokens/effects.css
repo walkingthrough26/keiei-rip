@@ -1,0 +1,39 @@
+/* ============================================================
+   KEIEI.RIP — Effects: radii, borders, shadows, motion
+   Print-led: corners are nearly square, structure comes from
+   hairline rules, not soft shadows. Shadows are faint paper lift.
+   ============================================================ */
+:root {
+  /* —— Radii (minimal — paper & plaques are square) —— */
+  --radius-none: 0;
+  --radius-sm:   2px;
+  --radius-md:   4px;
+  --radius-seal: 3px;   /* the 朱印 seal */
+  --radius-pill: 999px; /* chips / tags only */
+
+  /* —— Border widths —— */
+  --bw-hairline: 1px;
+  --bw-rule:     1.5px;
+  --bw-strong:   2px;
+  --bw-heavy:    3px;   /* top rule of a 墓碑 */
+
+  /* —— Shadows (faint, warm) —— */
+  --shadow-none:   none;
+  --shadow-card:   0 1px 2px rgba(22,19,16,.05), 0 10px 30px rgba(22,19,16,.06);
+  --shadow-raised: 0 2px 4px rgba(22,19,16,.08), 0 18px 48px rgba(22,19,16,.10);
+  --shadow-seal:   0 1px 1px rgba(143,36,21,.35);
+  --shadow-inset:  inset 0 0 0 1px var(--border-hairline);
+
+  /* —— Motion —— */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);  /* @kind other */
+  --ease-exit:     cubic-bezier(0.4, 0, 1, 1);  /* @kind other */
+  --dur-fast:   120ms;  /* @kind other */
+  --dur-base:   200ms;  /* @kind other */
+  --dur-slow:   360ms;  /* @kind other */
+
+  /* —— Z —— */
+  --z-base:    1;     /* @kind other */
+  --z-sticky:  100;   /* @kind other */
+  --z-overlay: 1000;  /* @kind other */
+  --z-modal:   1100;  /* @kind other */
+}

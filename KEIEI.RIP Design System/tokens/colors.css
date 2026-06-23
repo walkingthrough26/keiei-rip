@@ -1,0 +1,60 @@
+/* ============================================================
+   KEIEI.RIP — Color tokens
+   モノクロ + 朱赤（弔いと情熱）
+   Warm sumi-ink neutrals on warm paper, with a single
+   vermilion accent used like a 朱印 (red seal): sparingly, decisively.
+   ============================================================ */
+:root {
+  /* —— Sumi ink ramp (warm near-black → light) —— */
+  --sumi:      #161310; /* primary ink / text — warm near-black */
+  --ink-900:   #161310;
+  --ink-800:   #2a2622;
+  --ink-700:   #423c36;
+  --ink-600:   #5b534b;
+  --ink-500:   #786f65;
+  --ink-400:   #9a9085;
+  --ink-300:   #bcb2a6;
+  --ink-200:   #d9d1c4;
+  --ink-150:   #e4ddd2;
+  --ink-100:   #ece6db;
+
+  /* —— Paper (warm off-white surfaces) —— */
+  --paper:        #f4f0e7; /* page background — aged paper */
+  --paper-raised: #faf7f0; /* card / raised surface */
+  --paper-deep:   #ebe5d8; /* sunken / alternate band */
+  --white:        #ffffff;
+
+  /* —— Vermilion 朱赤 (the only chromatic color) —— */
+  --shu-700: #8f2415; /* pressed */
+  --shu-600: #a82a18; /* hover */
+  --shu-500: #c8341f; /* primary accent — 朱 */
+  --shu-400: #db4d33; /* light accent / on-dark */
+  --shu-100: #f3d9d1; /* faint tint wash */
+
+  /* —— Semantic: text —— */
+  --text-primary:   var(--sumi);
+  --text-secondary: var(--ink-600);
+  --text-muted:     var(--ink-400);
+  --text-ondark:    var(--paper);
+  --text-ondark-muted: var(--ink-300);
+  --text-accent:    var(--shu-500);
+
+  /* —— Semantic: surfaces —— */
+  --surface-page:   var(--paper);
+  --surface-card:   var(--paper-raised);
+  --surface-sunken: var(--paper-deep);
+  --surface-ink:    var(--sumi);    /* dark editorial bands */
+  --surface-accent: var(--shu-500); /* the seal */
+
+  /* —— Semantic: lines & borders —— */
+  --border-hairline: var(--ink-200);
+  --border-rule:     var(--ink-600);
+  --border-strong:   var(--sumi);
+  --border-accent:   var(--shu-500);
+
+  /* —— Selection —— */
+  --selection-bg: var(--shu-500);
+  --selection-fg: var(--paper);
+}
+
+::selection { background: var(--selection-bg); color: var(--selection-fg); }

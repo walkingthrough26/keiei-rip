@@ -1,0 +1,19 @@
+<!-- @dsCard group="Spacing" viewport="700x210" name="角丸 & 影" subtitle="ほぼ直角の紙・板 / 影は淡い紙の浮き" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { padding: 30px 32px; background: var(--paper); display: flex; gap: 26px; align-items: center; flex-wrap: wrap; }
+  .box { width: 120px; height: 90px; background: var(--paper-raised); display: grid; place-items: end; padding: 8px; }
+  .box span { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="box" style="border:1px solid var(--ink-200); border-radius:0;"><span>radius 0</span></div>
+  <div class="box" style="border:1px solid var(--ink-200); border-radius:4px;"><span>radius 4</span></div>
+  <div class="box" style="border:none; box-shadow:var(--shadow-card); border-radius:2px;"><span>card</span></div>
+  <div class="box" style="border:none; box-shadow:var(--shadow-raised); border-radius:2px;"><span>raised</span></div>
+</body>
+</html>

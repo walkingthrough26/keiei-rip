@@ -1,0 +1,67 @@
+<!-- @dsCard group="Components" viewport="700x560" name="Core — Button / Tag / Section / Quote / Stat" subtitle="基本プリミティブ" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 30px 34px; background: var(--paper); }
+  .grp { margin-bottom: 26px; }
+  .gl { font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Button, Tag, SectionLabel, Quote, StatPlaque } = window.KEIEIRIPDesignSystem_4bc645;
+  function Demo() {
+    return (
+      <div>
+        <div className="grp">
+          <div className="gl">Button</div>
+          <div className="row">
+            <Button variant="primary">アーカイブを見る</Button>
+            <Button variant="secondary">弔辞を読む</Button>
+            <Button variant="ghost">もっと見る</Button>
+            <Button variant="primary" size="sm">追悼</Button>
+            <Button variant="primary" disabled>送信済み</Button>
+          </div>
+        </div>
+        <div className="grp">
+          <div className="gl">Tag</div>
+          <div className="row">
+            <Tag variant="default">飲食</Tag>
+            <Tag variant="accent">資金繰り</Tag>
+            <Tag variant="solid">2014 没</Tag>
+            <Tag variant="seal">特集</Tag>
+            <Tag variant="muted">印刷</Tag>
+          </div>
+        </div>
+        <div className="grp">
+          <div className="gl">SectionLabel</div>
+          <SectionLabel number="01" kicker="ARCHIVE" title="業種別の墓場" />
+        </div>
+        <div className="grp">
+          <div className="gl">Quote</div>
+          <Quote cite="創業者 田中" source="閉店の日に">最後の一日まで、店は満席だった。</Quote>
+        </div>
+        <div className="grp" style={{marginBottom:0}}>
+          <div className="gl">StatPlaque</div>
+          <div className="row" style={{gap:'40px'}}>
+            <StatPlaque value="33" unit="年" label="享年" sub="1976–2009" />
+            <StatPlaque value="217" unit="店" label="最盛期の店舗数" accent />
+            <StatPlaque value="48" unit="億円" label="負債総額" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

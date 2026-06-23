@@ -1,0 +1,46 @@
+<!-- @dsCard group="Components" viewport="700x340" name="Forms — Search / FilterChip" subtitle="墓場を掘る検索と絞り込み" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 34px; background: var(--paper); }
+  .gl { font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
+  .block { margin-bottom: 32px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { SearchField, FilterChip } = window.KEIEIRIPDesignSystem_4bc645;
+  function Demo() {
+    const [q, setQ] = React.useState('');
+    const [active, setActive] = React.useState('all');
+    const chips = [['all','すべて',null],['food','飲食',42],['retail','小売',31],['print','印刷',8],['cash','資金繰り',19]];
+    return (
+      <div>
+        <div className="block">
+          <p className="gl">SearchField · size="lg"</p>
+          <SearchField value={q} onChange={setQ} size="lg" />
+        </div>
+        <div className="block" style={{marginBottom:0}}>
+          <p className="gl">FilterChip</p>
+          <div className="row">
+            {chips.map(([k,label,c]) => (
+              <FilterChip key={k} active={active===k} count={c} onClick={() => setActive(k)}>{label}</FilterChip>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

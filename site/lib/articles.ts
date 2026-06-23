@@ -91,25 +91,20 @@ export async function getArticle(slug: string): Promise<Article | null> {
   }
 }
 
-export function getCategoryColor(category: ArticleCategory): string {
-  const colors: Record<ArticleCategory, string> = {
-    '新規事業失敗': 'bg-orange-100 text-orange-800',
-    'DX失敗': 'bg-blue-100 text-blue-800',
-    '経営判断': 'bg-red-100 text-red-800',
-    '財務・M&A': 'bg-purple-100 text-purple-800',
-    'コーポレートガバナンス': 'bg-gray-200 text-gray-800',
-    '組織・文化': 'bg-green-100 text-green-800',
-    '急成長の罠': 'bg-yellow-100 text-yellow-800',
-  }
-  return colors[category] ?? 'bg-gray-100 text-gray-700'
-}
-
-export function getStatusLabel(status: ArticleStatus): string {
-  return status
-}
-
 export function getRelatedArticles(currentSlug: string, category: ArticleCategory, limit = 3): ArticleMeta[] {
   return getAllArticles()
     .filter((a) => a.slug !== currentSlug && a.category === category)
     .slice(0, limit)
+}
+
+/**
+ * 墓碑番号 — a stable 4-digit grave number for a slug.
+ * Earliest article = NO.0001; graves accumulate over time.
+ */
+export function getGraveNumber(slug: string): string {
+  const all = getAllArticles() // newest-first
+  const idx = all.findIndex((a) => a.slug === slug)
+  if (idx === -1) return '0000'
+  const n = all.length - idx // newest gets the highest number
+  return String(n).padStart(4, '0')
 }

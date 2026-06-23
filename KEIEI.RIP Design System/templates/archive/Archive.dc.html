@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="経営の墓場 — Archive" description="KEIEI.RIP の墓碑アーカイブ・ランディング。DSコンポーネントで組んだ起点ページ。" -->
+<helmet>
+<script src="./ds-base.js"></script>
+</helmet>
+
+<div style="background: var(--paper); min-height: 100vh; font-family: var(--font-serif); color: var(--text-primary);">
+
+  <!-- Header -->
+  <header style="position: sticky; top: 0; z-index: 100; background: rgba(244,240,231,0.88); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--ink-200);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 40px; height: 68px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--radius-seal); background: var(--shu-500); box-shadow: var(--shadow-seal);">
+          <b style="font-family: var(--font-display); font-weight: 900; font-size: 19px; line-height: 1; color: var(--paper);">経</b>
+        </span>
+        <span style="font-family: var(--font-latin); font-weight: 700; font-size: 25px; line-height: 1; letter-spacing: 0.005em; color: var(--sumi);">KEIEI<span style="color: var(--shu-500);">.RIP</span></span>
+      </div>
+      <nav style="display: flex; align-items: center; gap: 30px;">
+        <a href="#" style="font-family: var(--font-sans); font-size: 14px; font-weight: 500; color: var(--sumi);">アーカイブ</a>
+        <a href="#" style="font-family: var(--font-sans); font-size: 14px; font-weight: 500; color: var(--ink-600);">業種別</a>
+        <a href="#" style="font-family: var(--font-sans); font-size: 14px; font-weight: 500; color: var(--ink-600);">弔辞</a>
+        <span style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; color: var(--shu-500); text-transform: uppercase;">R.I.P.</span>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section style="max-width: 1200px; margin: 0 auto; padding: 88px 40px 56px;">
+    <div style="font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--shu-500); margin-bottom: 28px;">経営の墓場 — An Archive of Fallen Businesses</div>
+    <h1 style="font-family: var(--font-display); font-weight: 900; font-size: 64px; line-height: 1.18; letter-spacing: -0.02em; color: var(--sumi); margin: 0; max-width: 16em;">倒れた事業に、<br>弔いと、敬意を。</h1>
+    <p style="font-family: var(--font-serif); font-size: 20px; line-height: 1.9; color: var(--text-secondary); max-width: 34em; margin-top: 28px;">ここは、潰えた事業の墓場です。失敗は、挑んだ者にしか訪れない。敗れてなお前を向いた事業者たちの記録を、ひとつずつ刻んでいます。</p>
+  </section>
+
+  <!-- Stats band -->
+  <section style="background: var(--sumi);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 52px 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px;">
+      <x-import component-from-global-scope="KEIEIRIPDesignSystem_4bc645.StatPlaque" value="218" unit="基" label="埋葬された事業" accent="{{ true }}" onDark="{{ true }}" hint-size="100%,90px"></x-import>
+      <x-import component-from-global-scope="KEIEIRIPDesignSystem_4bc645.StatPlaque" value="80" unit="年" label="最も長く生きた事業" onDark="{{ true }}" hint-size="100%,90px"></x-import>
+      <x-import component-from-global-scope="KEIEIRIPDesignSystem_4bc645.StatPlaque" value="1923" label="最古の創業年" sub="EST." onDark="{{ true }}" hint-size="100%,90px"></x-import>
+    </div>
+  </section>
+
+  <!-- Archive -->
+  <section style="max-width: 1200px; margin: 0 auto; padding: 72px 40px 40px;">
+    <x-import component-from-global-scope="KEIEIRIPDesignSystem_4bc645.SectionLabel" number="01" kicker="The Archive" title="墓碑をめぐる" hint-size="100%,80px"></x-import>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 36px;">
+      <x-import component-from-global-scope="KEIEIRIPDesignSystem_4bc645.MemorialCard" variant="monument" number="0001" name="月光堂書店" nameLatin="Gekkodo Books" industry="書店" founded="1952" died="2016" cause="商店街の衰退" epitaph="三代続いた町の本屋。最後の客は、初代を知る老人だった。" hint-size="100%,360px"></x-import>
+      <x-import component-from-global-scope="KEIEIRIPDesignSystem_4bc645.MemorialCard" number="0427" name="株式会社 暁印刷" industry="印刷" founded="1976" died="2009" cause="設備投資過剰" epitaph="活版からオフセットへ。時代の速さに、設備の借入が追いつかなかった。" hint-size="100%,360px"></x-import>
+      <x-import component-from-global-scope="KEIEIRIPDesignSystem_4bc645.MemorialCard" number="0431" name="みなと写真館" industry="写真" founded="1964" died="2014" cause="デジタル化" epitaph="七五三も成人式も、町の節目はすべてここで止まっていた。" hint-size="100%,360px"></x-import>
+    </div>
+  </section>
+
+  <!-- Eulogy -->
+  <section style="max-width: 760px; margin: 0 auto; padding: 48px 40px 96px;">
+    <x-import component-from-global-scope="KEIEIRIPDesignSystem_4bc645.Quote" cite="二代目店主" source="閉店の日に" hint-size="100%,120px">本を待つ時間を、売っていたのかもしれない。</x-import>
+  </section>
+
+</div>
+
+</x-dc>
+</body>
+</html>

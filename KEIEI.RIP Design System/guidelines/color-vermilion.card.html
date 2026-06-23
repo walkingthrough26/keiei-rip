@@ -1,0 +1,26 @@
+<!-- @dsCard group="Colors" viewport="700x200" name="朱赤 / Vermilion" subtitle="弔いと情熱 — 唯一の有彩色、朱印のように使う" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { padding: 28px 30px; background: var(--paper); display: flex; align-items: center; gap: 28px; }
+  .scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; flex: 1; border: 1px solid var(--ink-200); }
+  .sw { height: 96px; display: flex; align-items: flex-end; padding: 8px; }
+  .sw span { font-family: var(--font-mono); font-size: 9px; }
+  .seal { width: 96px; height: 96px; flex: none; background: var(--shu-500); border-radius: 3px; display: grid; place-items: center; box-shadow: 0 1px 1px rgba(143,36,21,.35); }
+  .seal b { font-family: var(--font-display); color: #faf7f0; font-size: 44px; font-weight: 900; }
+</style>
+</head>
+<body>
+  <div class="seal"><b>経</b></div>
+  <div class="scale">
+    <div class="sw" style="background:var(--shu-700);"><span style="color:#f3d9d1;">700</span></div>
+    <div class="sw" style="background:var(--shu-600);"><span style="color:#f3d9d1;">600</span></div>
+    <div class="sw" style="background:var(--shu-500);"><span style="color:#f3d9d1;">500</span></div>
+    <div class="sw" style="background:var(--shu-400);"><span style="color:#fff;">400</span></div>
+    <div class="sw" style="background:var(--shu-100);"><span style="color:#8f2415;">100</span></div>
+  </div>
+</body>
+</html>

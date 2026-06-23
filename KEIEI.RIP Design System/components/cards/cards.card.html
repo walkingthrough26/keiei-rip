@@ -1,0 +1,49 @@
+<!-- @dsCard group="Components" viewport="700x520" name="MemorialCard — 墓碑カード" subtitle="stone / monument / index の3バリアント" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 30px 34px; background: var(--paper); }
+  .gl { font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 12px; }
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; margin-bottom: 24px; }
+  .list { background: var(--paper-raised); padding: 4px 18px; border-radius: 2px; box-shadow: var(--shadow-card); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { MemorialCard } = window.KEIEIRIPDesignSystem_4bc645;
+  function Demo() {
+    return (
+      <div>
+        <div className="twocol">
+          <div>
+            <p className="gl">variant="stone"</p>
+            <MemorialCard number="0427" name="株式会社 暁印刷" industry="印刷" founded={1976} died={2009} cause="設備投資過剰"
+              epitaph="活版からオフセットへ。時代の速さに、設備の借入が追いつかなかった。" href="#" />
+          </div>
+          <div>
+            <p className="gl">variant="monument"</p>
+            <MemorialCard variant="monument" number="0001" name="月光堂書店" industry="書店" founded={1952} died={2016} cause="商店街衰退"
+              epitaph="三代続いた町の本屋。最後の客は、初代を知る老人だった。" href="#" />
+          </div>
+        </div>
+        <p className="gl">variant="index"</p>
+        <div className="list">
+          <MemorialCard variant="index" number="0428" name="まちの洋食 グリル燕" founded={1988} died={2018} cause="後継者不在" href="#" />
+          <MemorialCard variant="index" number="0429" name="有限会社 北辰精工" founded={1971} died={2011} cause="取引先倒産" href="#" />
+          <MemorialCard variant="index" number="0430" name="スナック 灯" founded={1979} died={2020} cause="コロナ禍" href="#" />
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

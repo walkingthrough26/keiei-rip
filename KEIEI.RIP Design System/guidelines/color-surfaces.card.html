@@ -1,0 +1,22 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="紙の面 / Paper surfaces" subtitle="page · card · sunken · ink band" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { padding: 28px 30px; background: var(--paper); }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .tile { height: 90px; border: 1px solid var(--ink-200); border-radius: 2px; padding: 10px; display: flex; align-items: flex-end; }
+  .tile span { font-family: var(--font-mono); font-size: 10px; letter-spacing: .03em; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="tile" style="background:var(--paper);"><span style="color:var(--ink-600);">page</span></div>
+    <div class="tile" style="background:var(--paper-raised);"><span style="color:var(--ink-600);">card</span></div>
+    <div class="tile" style="background:var(--paper-deep);"><span style="color:var(--ink-600);">sunken</span></div>
+    <div class="tile" style="background:var(--sumi); border-color:var(--sumi);"><span style="color:var(--paper);">ink band</span></div>
+  </div>
+</body>
+</html>

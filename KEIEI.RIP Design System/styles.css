@@ -1,0 +1,11 @@
+/* ============================================================
+   KEIEI.RIP Design System — global entry point
+   Consumers link THIS file only. Imports only; no rules here.
+   経営の失敗を讃える。挑戦・失敗・力強さ。
+   ============================================================ */
+@import url("tokens/fonts.css");
+@import url("tokens/colors.css");
+@import url("tokens/typography.css");
+@import url("tokens/spacing.css");
+@import url("tokens/effects.css");
+@import url("tokens/base.css");

@@ -1,0 +1,26 @@
+<!-- @dsCard group="Spacing" viewport="700x230" name="スペーシング・スケール" subtitle="8px base · 4 → 192" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { padding: 26px 32px; background: var(--paper); }
+  .rows { display: flex; flex-direction: column; gap: 9px; }
+  .r { display: flex; align-items: center; gap: 14px; }
+  .bar { height: 14px; background: var(--shu-500); border-radius: 1px; }
+  .tok { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); width: 96px; flex: none; }
+</style>
+</head>
+<body>
+  <div class="rows">
+    <div class="r"><span class="tok">space-2 · 8</span><span class="bar" style="width:8px;"></span></div>
+    <div class="r"><span class="tok">space-4 · 16</span><span class="bar" style="width:16px;"></span></div>
+    <div class="r"><span class="tok">space-5 · 24</span><span class="bar" style="width:24px;"></span></div>
+    <div class="r"><span class="tok">space-6 · 32</span><span class="bar" style="width:32px;"></span></div>
+    <div class="r"><span class="tok">space-7 · 48</span><span class="bar" style="width:48px;"></span></div>
+    <div class="r"><span class="tok">space-8 · 64</span><span class="bar" style="width:64px;"></span></div>
+    <div class="r"><span class="tok">space-9 · 96</span><span class="bar" style="width:96px;"></span></div>
+  </div>
+</body>
+</html>

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 export default function LikeButton({ slug }: { slug: string }) {
   const [count, setCount] = useState<number | null>(null)
   const [liked, setLiked] = useState(false)
+  const [hover, setHover] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -34,19 +35,45 @@ export default function LikeButton({ slug }: { slug: string }) {
     }
   }
 
+  const active = liked
+  const showInk = !active && hover
+
   return (
     <button
       onClick={handleLike}
-      disabled={liked}
-      aria-label={liked ? 'いいね済み' : 'いいねする'}
-      className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-sans transition-colors ${
-        liked
-          ? 'border-red-300 bg-red-50 text-red-500 cursor-default'
-          : 'border-gray-200 bg-white text-gray-500 hover:border-red-300 hover:text-red-500 cursor-pointer'
-      }`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      disabled={active}
+      aria-label={active ? '献花済み' : '献花する'}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '12px 22px',
+        borderRadius: 'var(--radius-sm)',
+        cursor: active ? 'default' : 'pointer',
+        fontFamily: 'var(--font-sans), system-ui, sans-serif',
+        fontSize: 14,
+        fontWeight: 700,
+        letterSpacing: '.04em',
+        transition: 'all var(--dur-fast) var(--ease-standard)',
+        background: active ? 'var(--shu-500)' : showInk ? 'var(--sumi)' : 'transparent',
+        color: active ? 'var(--paper)' : showInk ? 'var(--paper)' : 'var(--sumi)',
+        border: `1.5px solid ${active ? 'var(--shu-500)' : 'var(--sumi)'}`,
+      }}
     >
-      <span className="text-base">{liked ? '❤️' : '🤍'}</span>
-      <span>{count === null ? '…' : count}</span>
+      <span aria-hidden="true" style={{ fontFamily: "var(--font-display), 'Zen Old Mincho', serif", fontSize: 16, lineHeight: 1 }}>
+        献花
+      </span>
+      <span
+        style={{
+          fontFamily: 'var(--font-mono), monospace',
+          fontVariantNumeric: 'tabular-nums',
+          color: active ? 'var(--paper)' : showInk ? 'var(--shu-400)' : 'var(--shu-500)',
+        }}
+      >
+        {count === null ? '…' : count}
+      </span>
     </button>
   )
 }

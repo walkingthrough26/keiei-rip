@@ -1,0 +1,24 @@
+/* ============================================================
+   KEIEI.RIP — Spacing & layout tokens
+   8px base. Editorial generosity at the large end.
+   ============================================================ */
+:root {
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  64px;
+  --space-9:  96px;
+  --space-10: 128px;
+  --space-11: 192px;
+
+  /* —— Layout —— */
+  --container:      1200px;
+  --container-text: 760px;  /* article column */
+  --gutter:         24px;
+  --band-pad-y:     96px;   /* vertical rhythm between editorial bands */
+}
