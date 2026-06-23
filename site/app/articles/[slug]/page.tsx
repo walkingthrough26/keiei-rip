@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import LikeButton from '@/components/LikeButton'
-import { MemorialCard, SectionLabel, Tag } from '@/components/ui'
+import { MemorialCard, SectionLabel, Tag, shortStatus } from '@/components/ui'
 
 export async function generateStaticParams() {
   const articles = getAllArticles()
@@ -63,7 +63,7 @@ export default async function ArticlePage(props: PageProps<'/articles/[slug]'>) 
               NO. {number}
             </span>
             <span style={{ height: 1, flex: 1, background: 'var(--ink-700)' }} />
-            <Tag variant="seal">{article.status}</Tag>
+            <Tag variant="seal">{shortStatus(article.status)}</Tag>
           </div>
 
           <h1

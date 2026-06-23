@@ -1,5 +1,17 @@
 import type { CSSProperties, ReactNode } from 'react'
 
+/**
+ * 死因を判子向けに短縮する。
+ * 自動生成記事の status は「破産（2024年…）」のような長文になりうるため、
+ * 先頭の語（括弧・句読点・空白の前）だけを取り出し、最大8文字に丸める。
+ */
+export function shortStatus(status: string): string {
+  const head = status.split(/[\s（(〔［[【「『〈《｛{)\]）〕］】」』〉》｝}、。，．,.:：;；!！?？／/\\—–ー-]/u)[0].trim()
+  const label = head || status.trim()
+  const chars = Array.from(label)
+  return chars.length > 8 ? `${chars.slice(0, 8).join('')}…` : label
+}
+
 /* ── Tag (squared judge-stamp) ──────────────────────────── */
 type TagVariant = 'default' | 'solid' | 'accent' | 'seal' | 'muted'
 
@@ -233,7 +245,7 @@ export function MemorialCard({
             {title}
           </span>
         </span>
-        <Tag variant="accent">{status}</Tag>
+        <Tag variant="accent">{shortStatus(status)}</Tag>
       </a>
     )
   }
@@ -249,7 +261,7 @@ export function MemorialCard({
         <span style={{ fontFamily: "var(--font-mono), monospace", fontSize: 11, letterSpacing: '.14em', color: fgMuted }}>
           NO. {number}
         </span>
-        <Tag variant={mon ? 'seal' : 'accent'}>{status}</Tag>
+        <Tag variant={mon ? 'seal' : 'accent'}>{shortStatus(status)}</Tag>
       </div>
 
       <div
