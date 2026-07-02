@@ -199,28 +199,37 @@ const jsonFormat = `[
   }
 ]`
 
+// Call Claude expecting a JSON array back, retrying on truncation/parse failure
+async function requestCandidateArray(prompt, label, attempts = 2) {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    const candidates = parseJsonArray(extractText(response))
+    if (candidates && candidates.length > 0) return candidates
+    console.warn(
+      `⚠️  ${label}: attempt ${attempt}/${attempts} returned no parseable JSON array (stop_reason: ${response.stop_reason})`
+    )
+  }
+  return null
+}
+
 async function fallbackCandidates(reason) {
   console.warn(`⚠️  ${reason}, falling back to Claude knowledge-based selection`)
-  const fallbackResponse = await client.messages.create({
-    model: MODEL,
-    max_tokens: 800,
-    messages: [
-      {
-        role: 'user',
-        content: `${buildCoveredInstruction()}
+  const fallback = await requestCandidateArray(
+    `${buildCoveredInstruction()}
 
-上記以外の、最近（2023〜2026年）の日本の経営失敗事例を5件、以下のJSON配列形式だけで返してください：
+上記以外の、最近（2023〜2026年）の日本の経営失敗事例を8件、以下のJSON配列形式だけで返してください。
+誰もが知る有名事例よりも、まだ広く知られていない中堅企業・スタートアップ・老舗企業の事例を優先してください：
 ${jsonFormat}
 
 categoryは以下から選んでください：
 DX失敗 / 新規事業失敗 / 経営判断 / 財務・M&A / コーポレートガバナンス / 組織・文化 / 急成長の罠`,
-      },
-    ],
-  })
-
-  const fallbackText = extractText(fallbackResponse)
-  const fallback = parseJsonArray(fallbackText)
-  if (fallback && fallback.length > 0) {
+    'Fallback'
+  )
+  if (fallback) {
     console.log(`   Fallback extracted ${fallback.length} candidates`)
     return fallback
   }
@@ -229,8 +238,20 @@ DX失敗 / 新規事業失敗 / 経営判断 / 財務・M&A / コーポレート
 
 // ── Step 1: web search ────────────────────────────────────────────────────────
 
+// Rotate search keyword sets by day of month so the same famous
+// (already-covered) cases don't dominate the results every day
+const SEARCH_KEYWORD_SETS = [
+  ['日本企業 事業撤退 2025 2026', '日本 倒産 大企業 2025 2026', '日本企業 経営失敗 事例', '日本企業 不正 スキャンダル 2025'],
+  ['スタートアップ 倒産 破産 2025 2026', 'ベンチャー 資金調達 失敗 撤退', 'サービス終了 事業終了 2025 2026', '上場廃止 経営不振 2025'],
+  ['民事再生 中堅企業 2025 2026', '老舗企業 廃業 倒産 2025', '地方企業 経営破綻 2025', '帝国データバンク 倒産 速報'],
+  ['新規事業 失敗 撤退 日本企業', 'M&A 減損 失敗 2025 2026', '不祥事 ガバナンス 日本 2025 2026', '希望退職 業績悪化 日本 2025'],
+]
+
 async function fetchNewsRaw() {
   console.log('🔍  Step 1: web search for recent Japanese business failures...')
+
+  const keywords = SEARCH_KEYWORD_SETS[new Date().getDate() % SEARCH_KEYWORD_SETS.length]
+  const { companies: coveredCompanies } = getCoveredCompanies()
 
   const response = await client.messages.create({
     model: MODEL,
@@ -242,10 +263,10 @@ async function fetchNewsRaw() {
         content: `以下のキーワードで日本のビジネスニュースを検索し、最近（2024〜2026年）の経営失敗・事業撤退・倒産・M&A失敗・不正会計・コーポレートガバナンス問題の具体的な事例を3〜5件探してください。
 
 検索してほしいキーワード：
-1. 「日本企業 事業撤退 2025」
-2. 「日本 倒産 大企業 2025 2026」
-3. 「日本企業 経営失敗 事例」
-4. 「日本企業 不正 スキャンダル 2025」
+${keywords.map((k, i) => `${i + 1}. 「${k}」`).join('\n')}
+
+ただし、以下の企業はすでに記事化済みなので対象から除外し、それ以外の事例を探してください：
+${coveredCompanies.join('、')}
 
 見つかった事例について、企業名・何が起きたか・発生年・カテゴリを自由な文章で教えてください。JSON形式でなくてかまいません。`,
       },
@@ -260,18 +281,11 @@ async function fetchNewsRaw() {
 async function extractCandidates(rawText) {
   console.log('📋  Step 2: extracting structured candidates...')
 
-  const coveredInstruction = buildCoveredInstruction()
-
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 1500,
-    messages: [
-      {
-        role: 'user',
-        content: `以下のテキストから、日本の経営失敗事例を抽出してJSON配列として返してください。
+  const candidates = await requestCandidateArray(
+    `以下のテキストから、日本の経営失敗事例を抽出してJSON配列として返してください。
 テキストに具体的な事例がない場合は、あなたの知識から最近（2023〜2026年）の代表的な日本の経営失敗を3件挙げてください。
 
-${coveredInstruction}
+${buildCoveredInstruction()}
 
 テキスト：
 ${rawText}
@@ -281,14 +295,10 @@ ${jsonFormat}
 
 categoryは以下から選んでください：
 DX失敗 / 新規事業失敗 / 経営判断 / 財務・M&A / コーポレートガバナンス / 組織・文化 / 急成長の罠`,
-      },
-    ],
-  })
+    'Extraction'
+  )
 
-  const text = extractText(response)
-  const candidates = parseJsonArray(text)
-
-  if (candidates && candidates.length > 0) {
+  if (candidates) {
     console.log(`   Extracted ${candidates.length} candidates`)
     return candidates
   }
