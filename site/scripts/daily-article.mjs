@@ -62,6 +62,8 @@ async function callClaude({ label, effort = 'medium', maxTokens, ...params }) {
   }
   if (response.model && response.model !== MODEL) {
     console.log(`   ↪ ${label}: served by fallback model ${response.model}`)
+  } else {
+    console.log(`   · ${label}: served by ${response.model}`)
   }
   if (response.stop_reason === 'max_tokens') {
     console.warn(`⚠️  ${label}: hit max_tokens (${maxTokens}); output may be truncated`)
@@ -575,7 +577,8 @@ function saveArticle(content, slug, company, ceo, dateStr) {
 async function main() {
   console.log('🌅  Keiei.RIP Daily Article Generator')
   const dateStr = todayJST()
-  console.log(`📅  Date: ${dateStr}\n`)
+  console.log(`📅  Date: ${dateStr}`)
+  console.log(`🤖  Model: ${MODEL}\n`)
 
   try {
     if (!process.env.ANTHROPIC_API_KEY) {
