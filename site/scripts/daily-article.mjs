@@ -21,11 +21,55 @@ import matter from 'gray-matter'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ARTICLES_DIR = path.join(__dirname, '..', 'content', 'articles')
 const COVERED_FILE = path.join(__dirname, '..', 'content', 'covered-companies.json')
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-5'
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5'
+
+// Models that accept server-side `fallbacks: "default"` (retry on another model
+// when a safety classifier declines the request).
+const FALLBACK_MODELS = new Set([
+  'claude-opus-5-5',
+  'claude-opus-5',
+  'claude-sonnet-5-5',
+  'claude-fable-5-1',
+  'claude-fable-5-2',
+])
 
 let client
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+// Single entry point for every Claude call.
+// - Streams the response (avoids HTTP timeouts with large max_tokens) and
+//   returns the final message.
+// - Opus 5.5 always thinks, and thinking counts toward max_tokens, so callers
+//   size max_tokens for thinking + reply and pick `effort` to control depth.
+// - Opts into server-side refusal fallbacks and fails loudly on a refusal
+//   instead of silently parsing empty content.
+async function callClaude({ label, effort = 'medium', maxTokens, ...params }) {
+  const useFallbacks = FALLBACK_MODELS.has(MODEL)
+  const stream = client.beta.messages.stream({
+    model: MODEL,
+    max_tokens: maxTokens,
+    output_config: { effort },
+    ...(useFallbacks ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}),
+    ...params,
+  })
+  const response = await stream.finalMessage()
+
+  if (response.stop_reason === 'refusal') {
+    throw new Error(
+      `${label}: request was declined (stop_reason: refusal, category: ${response.stop_details?.category ?? 'unknown'})`
+    )
+  }
+  if (response.model && response.model !== MODEL) {
+    console.log(`   ↪ ${label}: served by fallback model ${response.model}`)
+  } else {
+    console.log(`   · ${label}: served by ${response.model}`)
+  }
+  if (response.stop_reason === 'max_tokens') {
+    console.warn(`⚠️  ${label}: hit max_tokens (${maxTokens}); output may be truncated`)
+  }
+  return response
+}
 
 // Read covered companies from JSON (authoritative source)
 function getCoveredCompanies() {
@@ -202,9 +246,10 @@ const jsonFormat = `[
 // Call Claude expecting a JSON array back, retrying on truncation/parse failure
 async function requestCandidateArray(prompt, label, attempts = 2) {
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4000,
+    const response = await callClaude({
+      label,
+      effort: 'low',
+      maxTokens: 16000,
       messages: [{ role: 'user', content: prompt }],
     })
     const candidates = parseJsonArray(extractText(response))
@@ -253,10 +298,11 @@ async function fetchNewsRaw() {
   const keywords = SEARCH_KEYWORD_SETS[new Date().getDate() % SEARCH_KEYWORD_SETS.length]
   const { companies: coveredCompanies } = getCoveredCompanies()
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 3000,
-    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6 }],
+  const response = await callClaude({
+    label: 'News search',
+    effort: 'medium',
+    maxTokens: 16000,
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
     messages: [
       {
         role: 'user',
@@ -332,9 +378,11 @@ async function selectBestCase(candidates) {
 
   console.log(`   Filtered ${candidates.length - pool.length} already-covered candidates. Pool: ${pool.length}`)
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 5,
+  const response = await callClaude({
+    label: 'Selection',
+    effort: 'low',
+    // Was 5: thinking now counts toward max_tokens, so leave room for it
+    maxTokens: 4000,
     messages: [
       {
         role: 'user',
@@ -356,10 +404,11 @@ ${pool.map((c, i) => `${i}: ${c.company} — ${c.event} (${c.category})`).join('
 async function deepResearch(selected) {
   console.log(`📚  Step 4: deep research on ${selected.company}...`)
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 5000,
-    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 8 }],
+  const response = await callClaude({
+    label: 'Deep research',
+    effort: 'medium',
+    maxTokens: 32000,
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 8 }],
     messages: [
       {
         role: 'user',
@@ -422,9 +471,11 @@ async function writeArticle(selected, research, dateStr) {
     ? research.raw.slice(0, 3000)
     : JSON.stringify(research, null, 2).slice(0, 3000)
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 8000,
+  const response = await callClaude({
+    label: 'Article writing',
+    // The article is the product: one level above the medium default
+    effort: 'high',
+    maxTokens: 32000,
     messages: [
       {
         role: 'user',
@@ -526,7 +577,8 @@ function saveArticle(content, slug, company, ceo, dateStr) {
 async function main() {
   console.log('🌅  Keiei.RIP Daily Article Generator')
   const dateStr = todayJST()
-  console.log(`📅  Date: ${dateStr}\n`)
+  console.log(`📅  Date: ${dateStr}`)
+  console.log(`🤖  Model: ${MODEL}\n`)
 
   try {
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -534,8 +586,11 @@ async function main() {
     }
     client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 5 })
 
-    // Guard: skip if an article for today already exists (prevents double-run)
-    if (articleExistsForDate(dateStr)) {
+    // Guard: skip if an article for today already exists (prevents double-run).
+    // A dry run (nothing gets committed) still runs, so the pipeline can be tested any time.
+    if (process.env.DRY_RUN === 'true') {
+      console.log('🧪  DRY_RUN=true: skipping the existing-article guard')
+    } else if (articleExistsForDate(dateStr)) {
       console.log(`ℹ️  Article for ${dateStr} already exists. Skipping.`)
       process.exit(0)
     }
